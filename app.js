@@ -268,29 +268,36 @@ async function searchArea() {
 
 btn.addEventListener('click', searchArea);
 
-// --- Spots communautaires (MVP : stockage local au téléphone pour l'instant) ---
-function loadCommunitySpots() {
+// --- Spots communautaires : base de données partagée (Supabase) ---
+// Tout le monde voit les mêmes spots ajoutés par la communauté, pas juste sur son propre téléphone.
+const SUPABASE_URL = 'https://lbjbizpusplzsblienmt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_NzQssCs8Gfyw__MNeet5xA_mJbmzHbC';
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+async function loadCommunitySpots() {
+  if (!sb) return;
   try {
-    const raw = localStorage.getItem('community_spots');
-    const spots = raw ? JSON.parse(raw) : [];
-    const geojson = spotsToGeoJSON(spots.map(s => [s.lat, s.lon, s.name, 'community', '', '', '', '']));
+    const { data, error } = await sb.from('spots').select('lat, lon, name');
+    if (error) throw error;
+    const geojson = spotsToGeoJSON(data.map(s => [s.lat, s.lon, s.name, 'community', '', '', '', '']));
     if (!map.getSource('community')) {
       addSpotLayer('community', geojson, false);
     } else {
       setLayerData('community', geojson);
     }
-  } catch (e) { /* localStorage indisponible: on ignore */ }
+  } catch (e) {
+    console.error('Erreur chargement spots communautaires', e);
+  }
 }
 
-function addCommunitySpot(lat, lon, name) {
+async function addCommunitySpot(lat, lon, name) {
+  if (!sb) { alert('Connexion à la base de données indisponible.'); return; }
   try {
-    const raw = localStorage.getItem('community_spots');
-    const spots = raw ? JSON.parse(raw) : [];
-    spots.push({ lat, lon, name: name || 'Spot ajouté' });
-    localStorage.setItem('community_spots', JSON.stringify(spots));
+    const { error } = await sb.from('spots').insert({ lat, lon, name: name || 'Spot ajouté' });
+    if (error) throw error;
     loadCommunitySpots();
   } catch (e) {
-    alert('Impossible de sauvegarder ce spot sur cet appareil.');
+    alert("Impossible d'enregistrer ce spot : " + e.message);
   }
 }
 
