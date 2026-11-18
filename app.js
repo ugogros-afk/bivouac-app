@@ -23,6 +23,17 @@ function setStatus(msg, type) {
   if (!msg) statusEl.className = '';
 }
 
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+// Pour insérer une chaîne dans un attribut onclick="..." sans casser le HTML.
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
 const COLORS = { aire: '#2e7d32', camping: '#1565c0', bivouac: '#e65100', community: '#8e24aa' };
 
 function classify(tags) {
@@ -44,7 +55,7 @@ function spotsToGeoJSON(spots) {
     features: spots.map((s) => {
       const [lat, lon, name, cls, fee, addr, phone, website, id] = s;
       // Les spots officiels n'ont pas d'identifiant propre : on en fabrique un stable
-      // à partir des coordonnées, pour pouvoir y accrocher des avis/photos.
+      // à partir des coordonnées, pour pouvoir y accrocher des avis/photos/favoris.
       const spotId = id || (lat.toFixed(6) + '_' + lon.toFixed(6));
       return {
         type: 'Feature',
@@ -64,17 +75,20 @@ function popupHtml(p, lat, lon) {
   const gmaps = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon;
   const waze = 'https://waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
   let html = '<div style="min-width:180px">';
-  html += '<strong>' + p.name + '</strong><br>';
-  html += '<span style="color:' + color + '">' + p.cls + '</span>';
-  if (p.fee) html += '<br>Payant: ' + p.fee;
-  if (p.addr) html += '<br>' + p.addr;
-  if (p.phone) html += '<br>📞 ' + p.phone;
+  html += '<strong>' + escapeHtml(p.name) + '</strong><br>';
+  html += '<div class="rating-summary" style="font-size:12px;color:#f5a623;margin:2px 0">Chargement de la note…</div>';
+  html += '<span style="color:' + color + '">' + escapeHtml(p.cls) + '</span>';
+  if (p.fee) html += '<br>Payant: ' + escapeHtml(p.fee);
+  if (p.addr) html += '<br>' + escapeHtml(p.addr);
+  if (p.phone) html += '<br>📞 ' + escapeHtml(p.phone);
   if (p.website) html += '<br><a href="' + p.website + '" target="_blank" rel="noopener">Site web</a>';
   html += '<div style="display:flex;gap:6px;margin-top:8px">';
   html += '<a href="' + gmaps + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#1a73e8;color:#fff;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Google Maps</a>';
   html += '<a href="' + waze + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#33ccff;color:#003;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Waze</a>';
   html += '</div>';
   html += '<button onclick="openAvisModal(\'' + p.spotId + '\',' + lat + ',' + lon + ')" style="width:100%;margin-top:6px;background:#f1f1f1;border:none;color:#333;padding:8px;border-radius:6px;font-size:12px;font-weight:600">💬 Avis & photos</button>';
+  html += '<button class="fav-btn" onclick="onFavClick(this,\'' + p.spotId + '\',' + lat + ',' + lon + ',\'' + escapeAttr(p.name) + '\')" style="width:100%;margin-top:6px;background:#fff8e1;border:none;color:#8a6500;padding:8px;border-radius:6px;font-size:12px;font-weight:600">' +
+    (isFavorite(p.spotId) ? '★ Retirer des favoris' : '☆ Ajouter aux favoris') + '</button>';
   html += '</div>';
   return html;
 }
@@ -145,10 +159,11 @@ function addSpotLayer(id, geojson, clustered) {
     const f = e.features[0];
     const p = f.properties;
     const [lon, lat] = f.geometry.coordinates;
-    new maplibregl.Popup({ offset: 10 })
+    const popup = new maplibregl.Popup({ offset: 10 })
       .setLngLat(f.geometry.coordinates)
       .setHTML(popupHtml(p, lat, lon))
       .addTo(map);
+    loadRatingSummary(p.spotId, popup);
   });
 
   map.on('mouseenter', id + '-points', () => map.getCanvas().style.cursor = 'pointer');
@@ -280,12 +295,32 @@ const SUPABASE_URL = 'https://lbjbizpusplzsblienmt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_NzQssCs8Gfyw__MNeet5xA_mJbmzHbC';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
+// La table `spots` n'a pas de colonne dédiée pour des notes libres : on les encode dans le
+// champ `name`, séparées par le caractère réservé ci-dessous (jamais tapé par un humain).
+// -> Si un jour une vraie colonne `notes` est ajoutée (ALTER TABLE spots ADD COLUMN notes text;),
+//    remplacer encodeSpotName/decodeSpotName par un accès direct à cette colonne.
+const NOTES_SEP = '\u241F';
+
+function encodeSpotName(name, notes) {
+  return notes ? (name + NOTES_SEP + notes) : name;
+}
+function decodeSpotName(stored) {
+  if (!stored || stored.indexOf(NOTES_SEP) === -1) return { name: stored, notes: '' };
+  const parts = stored.split(NOTES_SEP);
+  return { name: parts[0], notes: parts.slice(1).join(NOTES_SEP) };
+}
+
 async function loadCommunitySpots() {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('spots').select('id, lat, lon, name');
+    const { data, error } = await sb.from('spots').select('id, lat, lon, name, category');
     if (error) throw error;
-    const geojson = spotsToGeoJSON(data.map(s => [s.lat, s.lon, s.name, 'community', '', '', '', '', s.id]));
+    const tuples = data.map((s) => {
+      const { name, notes } = decodeSpotName(s.name);
+      const cls = s.category || 'community';
+      return [s.lat, s.lon, name, cls, '', notes, '', '', s.id];
+    });
+    const geojson = spotsToGeoJSON(tuples);
     if (!map.getSource('community')) {
       addSpotLayer('community', geojson, false);
     } else {
@@ -295,22 +330,6 @@ async function loadCommunitySpots() {
     console.error('Erreur chargement spots communautaires', e);
   }
 }
-
-async function addCommunitySpot(lat, lon, name) {
-  if (!sb) { alert('Connexion à la base de données indisponible.'); return; }
-  try {
-    const { error } = await sb.from('spots').insert({ lat, lon, name: name || 'Spot ajouté' });
-    if (error) throw error;
-    loadCommunitySpots();
-  } catch (e) {
-    alert("Impossible d'enregistrer ce spot : " + e.message);
-  }
-}
-
-map.on('contextmenu', (e) => {
-  const name = prompt('Nom du spot (parking toléré, coin sympa...) ?');
-  if (name !== null) addCommunitySpot(e.lngLat.lat, e.lngLat.lng, name);
-});
 
 map.on('load', () => {
   loadOfficialSpots();
@@ -325,19 +344,58 @@ map.on('load', () => {
   }
 });
 
-// --- Avis & photos sur les emplacements (commentaires + notes + photos, partagés via Supabase) ---
+// --- Avis, notes par étoiles & photos sur les emplacements (partagés via Supabase) ---
+// La table `comments` n'a pas de colonne dédiée pour la note (1 à 5 étoiles) : elle est encodée
+// au début du champ `text` sous la forme "⭐<note>⭐" suivie, le cas échéant, du commentaire.
+// -> Si un jour une vraie colonne `rating` est ajoutée
+//    (ALTER TABLE comments ADD COLUMN rating smallint CHECK (rating IS NULL OR rating BETWEEN 1 AND 5);),
+//    remplacer encodeRatingText/decodeRatingText par un accès direct à cette colonne.
+const RATING_RE = /^\u2b50([1-5])\u2b50\n?([\s\S]*)$/;
+
+function encodeRatingText(rating, text) {
+  if (rating) return '\u2b50' + rating + '\u2b50' + (text ? '\n' + text : '');
+  return text || null;
+}
+function decodeRatingText(stored) {
+  if (!stored) return { rating: null, text: '' };
+  const m = stored.match(RATING_RE);
+  if (m) return { rating: Number(m[1]), text: m[2] || '' };
+  return { rating: null, text: stored };
+}
+
+async function loadRatingSummary(spotId, popup) {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('comments').select('text').eq('spot_id', spotId);
+    if (error) throw error;
+    let sum = 0, count = 0;
+    data.forEach((row) => {
+      const { rating } = decodeRatingText(row.text);
+      if (rating) { sum += rating; count++; }
+    });
+    const el = popup.getElement && popup.getElement().querySelector('.rating-summary');
+    if (!el) return; // le popup a peut-être déjà été fermé
+    el.textContent = count ? ('★ ' + (sum / count).toFixed(1) + ' (' + count + ' avis)') : 'Pas encore noté';
+  } catch (e) {
+    const el = popup.getElement && popup.getElement().querySelector('.rating-summary');
+    if (el) el.textContent = '';
+  }
+}
+
 let currentAvisSpot = null;
+let selectedRating = 0;
 const avisModal = document.getElementById('avisModal');
 const avisList = document.getElementById('avisList');
 const avisText = document.getElementById('avisText');
 const avisPhoto = document.getElementById('avisPhoto');
 const avisSubmit = document.getElementById('avisSubmit');
+const avisStarEls = Array.from(document.querySelectorAll('#avisStars .star'));
 
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
+function setAvisStars(n) {
+  selectedRating = n;
+  avisStarEls.forEach((s) => s.classList.toggle('active', Number(s.dataset.v) <= n));
 }
+avisStarEls.forEach((s) => s.addEventListener('click', () => setAvisStars(Number(s.dataset.v))));
 
 function renderAvisList(items) {
   if (!items.length) {
@@ -345,9 +403,11 @@ function renderAvisList(items) {
     return;
   }
   avisList.innerHTML = items.map((it) => {
+    const { rating, text } = decodeRatingText(it.text);
     let html = '<div class="avis-item">';
+    if (rating) html += '<div class="avis-stars">' + '★'.repeat(rating) + '☆'.repeat(5 - rating) + '</div>';
     if (it.photo_url) html += '<img src="' + it.photo_url + '" loading="lazy">';
-    if (it.text) html += '<p>' + escapeHtml(it.text) + '</p>';
+    if (text) html += '<p>' + escapeHtml(text) + '</p>';
     html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span>';
     html += '</div>';
     return html;
@@ -359,6 +419,7 @@ async function openAvisModal(spotId, lat, lon) {
   currentAvisSpot = { id: spotId, lat, lon };
   avisText.value = '';
   avisPhoto.value = '';
+  setAvisStars(0);
   avisModal.classList.add('show');
   avisList.innerHTML = '<p style="color:#888;font-size:13px">Chargement…</p>';
   try {
@@ -383,8 +444,8 @@ async function submitAvis() {
   if (!currentAvisSpot || !sb) return;
   const text = avisText.value.trim();
   const file = avisPhoto.files[0];
-  if (!text && !file) {
-    alert('Ajoutez un commentaire ou une photo avant d\'envoyer.');
+  if (!selectedRating && !text && !file) {
+    alert("Ajoutez une note, un commentaire ou une photo avant d'envoyer.");
     return;
   }
   avisSubmit.disabled = true;
@@ -399,16 +460,18 @@ async function submitAvis() {
       const { data: urlData } = sb.storage.from('photos').getPublicUrl(path);
       photoUrl = urlData.publicUrl;
     }
+    const storedText = encodeRatingText(selectedRating, text);
     const { error } = await sb.from('comments').insert({
       spot_id: currentAvisSpot.id,
       lat: currentAvisSpot.lat,
       lon: currentAvisSpot.lon,
-      text: text || null,
+      text: storedText,
       photo_url: photoUrl
     });
     if (error) throw error;
     avisText.value = '';
     avisPhoto.value = '';
+    setAvisStars(0);
     openAvisModal(currentAvisSpot.id, currentAvisSpot.lat, currentAvisSpot.lon);
   } catch (e) {
     alert("Impossible d'envoyer cet avis : " + e.message);
@@ -422,4 +485,257 @@ document.getElementById('avisClose').addEventListener('click', closeAvisModal);
 avisSubmit.addEventListener('click', submitAvis);
 avisModal.addEventListener('click', (e) => {
   if (e.target === avisModal) closeAvisModal();
+});
+
+// --- Barre de recherche en haut : navigation par ville/adresse ---
+// Géocodage via l'API Adresse du gouvernement français (gratuite, sans clé, axée France).
+const GEOCODE_URL = 'https://api-adresse.data.gouv.fr/search/';
+const citySearchInput = document.getElementById('citySearchInput');
+const citySearchBtnEl = document.getElementById('citySearchBtn');
+
+async function geocodeAddress(query) {
+  const resp = await fetch(GEOCODE_URL + '?q=' + encodeURIComponent(query) + '&limit=1');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  if (!data.features || !data.features.length) return null;
+  const [lon, lat] = data.features[0].geometry.coordinates;
+  return { lat, lon, label: data.features[0].properties.label };
+}
+
+async function searchCity() {
+  const q = citySearchInput.value.trim();
+  if (!q) return;
+  citySearchBtnEl.disabled = true;
+  setStatus('Recherche de « ' + q + ' »…', 'active');
+  try {
+    const result = await geocodeAddress(q);
+    if (!result) {
+      setStatus('Aucun résultat pour « ' + q + ' »', 'error');
+      return;
+    }
+    map.flyTo({ center: [result.lon, result.lat], zoom: 12 });
+    setStatus(result.label, 'ok');
+    setTimeout(() => setStatus(''), 2500);
+  } catch (e) {
+    setStatus('Recherche indisponible (problème réseau)', 'error');
+  } finally {
+    citySearchBtnEl.disabled = false;
+  }
+}
+citySearchBtnEl.addEventListener('click', searchCity);
+citySearchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') searchCity();
+});
+
+// --- Ajout d'un nouveau lieu : géolocalisation, adresse tapée, ou clic sur la carte ---
+const addSpotModal = document.getElementById('addSpotModal');
+const addSpotStep1 = document.getElementById('addSpotStep1');
+const addSpotStep2 = document.getElementById('addSpotStep2');
+const addSpotPositionLabel = document.getElementById('addSpotPositionLabel');
+const addSpotNameInput = document.getElementById('addSpotName');
+const addSpotCategorySelect = document.getElementById('addSpotCategory');
+const addSpotNotesInput = document.getElementById('addSpotNotes');
+const addSpotSubmitBtn = document.getElementById('addSpotSubmit');
+const addSpotAddressInput = document.getElementById('addSpotAddressInput');
+const addSpotAddressBtn = document.getElementById('addSpotAddressBtn');
+
+let pendingSpotCoords = null; // { lat, lon, label }
+let pickingLocationOnMap = false;
+
+function showAddSpotStep1() {
+  addSpotStep1.style.display = 'block';
+  addSpotStep2.style.display = 'none';
+}
+function showAddSpotStep2() {
+  addSpotStep1.style.display = 'none';
+  addSpotStep2.style.display = 'block';
+  addSpotPositionLabel.textContent = pendingSpotCoords.label
+    ? ('Position : ' + pendingSpotCoords.label)
+    : ('Position : ' + pendingSpotCoords.lat.toFixed(5) + ', ' + pendingSpotCoords.lon.toFixed(5));
+  addSpotNameInput.value = '';
+  addSpotCategorySelect.value = 'aire';
+  addSpotNotesInput.value = '';
+}
+
+function openAddSpotModal() {
+  pendingSpotCoords = null;
+  addSpotAddressInput.value = '';
+  showAddSpotStep1();
+  addSpotModal.classList.add('show');
+}
+function closeAddSpotModal() {
+  addSpotModal.classList.remove('show');
+  pickingLocationOnMap = false;
+  map.getCanvas().style.cursor = '';
+  setStatus('');
+}
+
+document.getElementById('addSpotBtn').addEventListener('click', openAddSpotModal);
+document.getElementById('addSpotClose').addEventListener('click', closeAddSpotModal);
+document.getElementById('addSpotBack').addEventListener('click', showAddSpotStep1);
+addSpotModal.addEventListener('click', (e) => {
+  if (e.target === addSpotModal) closeAddSpotModal();
+});
+
+document.getElementById('addSpotUseLocation').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('La géolocalisation n\'est pas disponible sur cet appareil.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      pendingSpotCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude, label: 'votre position actuelle' };
+      showAddSpotStep2();
+    },
+    () => alert('Impossible d\'obtenir votre position (permission refusée ou signal indisponible). Essayez de taper une adresse, ou touchez la carte.'),
+    { timeout: 8000 }
+  );
+});
+
+addSpotAddressBtn.addEventListener('click', async () => {
+  const q = addSpotAddressInput.value.trim();
+  if (!q) return;
+  addSpotAddressBtn.disabled = true;
+  addSpotAddressBtn.textContent = '…';
+  try {
+    const result = await geocodeAddress(q);
+    if (!result) {
+      alert('Adresse introuvable. Essayez une autre formulation, ou touchez directement la carte.');
+      return;
+    }
+    pendingSpotCoords = result;
+    showAddSpotStep2();
+  } catch (e) {
+    alert('Erreur réseau lors de la recherche d\'adresse. Réessayez, ou touchez directement la carte.');
+  } finally {
+    addSpotAddressBtn.disabled = false;
+    addSpotAddressBtn.textContent = 'Valider';
+  }
+});
+
+document.getElementById('addSpotUseMap').addEventListener('click', () => {
+  addSpotModal.classList.remove('show');
+  pickingLocationOnMap = true;
+  map.getCanvas().style.cursor = 'crosshair';
+  setStatus('Touchez la carte à l\'endroit du nouveau lieu…', 'active');
+});
+
+map.on('click', (e) => {
+  if (!pickingLocationOnMap) return;
+  pickingLocationOnMap = false;
+  map.getCanvas().style.cursor = '';
+  setStatus('');
+  pendingSpotCoords = { lat: e.lngLat.lat, lon: e.lngLat.lng, label: null };
+  addSpotModal.classList.add('show');
+  showAddSpotStep2();
+});
+
+addSpotSubmitBtn.addEventListener('click', async () => {
+  if (!pendingSpotCoords) return;
+  if (!sb) { alert('Connexion à la base de données indisponible.'); return; }
+  const name = addSpotNameInput.value.trim();
+  if (!name) {
+    alert('Le nom est obligatoire.');
+    return;
+  }
+  const category = addSpotCategorySelect.value;
+  const notes = addSpotNotesInput.value.trim();
+  addSpotSubmitBtn.disabled = true;
+  addSpotSubmitBtn.textContent = 'Enregistrement…';
+  try {
+    const { error } = await sb.from('spots').insert({
+      lat: pendingSpotCoords.lat,
+      lon: pendingSpotCoords.lon,
+      name: encodeSpotName(name, notes),
+      category
+    });
+    if (error) throw error;
+    closeAddSpotModal();
+    loadCommunitySpots();
+    setStatus('Lieu ajouté, merci !', 'ok');
+    setTimeout(() => setStatus(''), 2500);
+  } catch (e) {
+    alert("Impossible d'enregistrer ce lieu : " + e.message);
+  } finally {
+    addSpotSubmitBtn.disabled = false;
+    addSpotSubmitBtn.textContent = 'Enregistrer';
+  }
+});
+
+// --- Favoris / spots enregistrés ---
+// Pas de compte utilisateur pour l'instant : stockage local à cet appareil (localStorage).
+// Limite connue et actée : les favoris ne sont pas partagés entre les appareils d'une même personne.
+const FAVORITES_KEY = 'favorite_spots';
+
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); } catch (e) { return []; }
+}
+function setFavorites(list) {
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(list)); } catch (e) { /* stockage indisponible : on ignore */ }
+}
+function isFavorite(id) {
+  return getFavorites().some((f) => f.id === id);
+}
+function toggleFavorite(id, lat, lon, name) {
+  const list = getFavorites();
+  const idx = list.findIndex((f) => f.id === id);
+  if (idx >= 0) {
+    list.splice(idx, 1);
+    setFavorites(list);
+    return false;
+  }
+  list.push({ id, lat, lon, name });
+  setFavorites(list);
+  return true;
+}
+function onFavClick(btnEl, id, lat, lon, name) {
+  const nowFav = toggleFavorite(id, lat, lon, name);
+  btnEl.textContent = nowFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris';
+}
+
+const favModal = document.getElementById('favModal');
+const favListEl = document.getElementById('favList');
+
+function renderFavList() {
+  const list = getFavorites();
+  if (!list.length) {
+    favListEl.innerHTML = '<p style="color:#888;font-size:13px">Aucun favori pour l\'instant.</p>';
+    return;
+  }
+  favListEl.innerHTML = list.map((f, i) =>
+    '<div class="fav-item" data-i="' + i + '">' +
+    '<span class="fav-name" data-i="' + i + '" style="flex:1">' + escapeHtml(f.name || '(sans nom)') + '</span>' +
+    '<button class="fav-remove" data-i="' + i + '">✕</button>' +
+    '</div>'
+  ).join('');
+}
+
+function openFavModal() {
+  renderFavList();
+  favModal.classList.add('show');
+}
+function closeFavModal() {
+  favModal.classList.remove('show');
+}
+
+document.getElementById('favBtn').addEventListener('click', openFavModal);
+document.getElementById('favClose').addEventListener('click', closeFavModal);
+favModal.addEventListener('click', (e) => {
+  if (e.target === favModal) closeFavModal();
+});
+
+favListEl.addEventListener('click', (e) => {
+  const i = e.target.getAttribute('data-i');
+  if (i === null) return;
+  const list = getFavorites();
+  const fav = list[Number(i)];
+  if (!fav) return;
+  if (e.target.classList.contains('fav-remove')) {
+    list.splice(Number(i), 1);
+    setFavorites(list);
+    renderFavList();
+  } else {
+    map.flyTo({ center: [fav.lon, fav.lat], zoom: 14 });
+    closeFavModal();
+  }
 });
