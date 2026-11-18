@@ -36,6 +36,13 @@ function escapeAttr(s) {
 
 const COLORS = { aire: '#2e7d32', camping: '#1565c0', bivouac: '#e65100', community: '#8e24aa' };
 
+// --- Filtre par type de spot (barre de chips en haut) ---
+// Toutes les catégories sont actives par défaut ; on retire celles décochées.
+const activeCategories = new Set(['aire', 'camping', 'bivouac', 'community']);
+function filterSpots(raw) {
+  return raw.filter((s) => activeCategories.has(s[3]));
+}
+
 function classify(tags) {
   if (tags.tourism === 'caravan_site') return 'aire';
   if (tags.tourism === 'camp_site') {
@@ -183,6 +190,7 @@ function setLayerData(id, geojson) {
 // Ça marche même en ouvrant index.html en double-clic (file://), sans serveur, sans terminal.
 // Source : OpenStreetMap (Geofabrik) + DATAtourisme (plateforme officielle française), fusionnées.
 let officialLoaded = false;
+let officialSpotsRaw = [];
 
 async function loadOfficialSpots() {
   try {
@@ -193,7 +201,8 @@ async function loadOfficialSpots() {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       spots = await resp.json();
     }
-    const geojson = spotsToGeoJSON(spots);
+    officialSpotsRaw = spots;
+    const geojson = spotsToGeoJSON(filterSpots(spots));
     if (!officialLoaded) {
       addSpotLayer('official', geojson, true);
       officialLoaded = true;
@@ -270,9 +279,9 @@ async function searchArea() {
         n++;
       });
       if (!map.getSource('live')) {
-        addSpotLayer('live', spotsToGeoJSON(liveSpots), false);
+        addSpotLayer('live', spotsToGeoJSON(filterSpots(liveSpots)), false);
       } else {
-        setLayerData('live', spotsToGeoJSON(liveSpots));
+        setLayerData('live', spotsToGeoJSON(filterSpots(liveSpots)));
       }
       setStatus(n + ' spot(s) trouvé(s) en direct dans cette zone', 'ok');
       btn.disabled = false;
@@ -295,6 +304,8 @@ const SUPABASE_URL = 'https://lbjbizpusplzsblienmt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_NzQssCs8Gfyw__MNeet5xA_mJbmzHbC';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
+let communitySpotsRaw = [];
+
 async function loadCommunitySpots() {
   if (!sb) return;
   try {
@@ -304,7 +315,8 @@ async function loadCommunitySpots() {
       const cls = s.category || 'community';
       return [s.lat, s.lon, s.name, cls, '', s.notes || '', '', '', s.id];
     });
-    const geojson = spotsToGeoJSON(tuples);
+    communitySpotsRaw = tuples;
+    const geojson = spotsToGeoJSON(filterSpots(tuples));
     if (!map.getSource('community')) {
       addSpotLayer('community', geojson, false);
     } else {
@@ -314,6 +326,27 @@ async function loadCommunitySpots() {
     console.error('Erreur chargement spots communautaires', e);
   }
 }
+
+// Ré-applique le filtre actif sur les 3 couches déjà chargées (sans refaire d'appel réseau).
+function applyFilters() {
+  if (officialLoaded) setLayerData('official', spotsToGeoJSON(filterSpots(officialSpotsRaw)));
+  if (map.getSource('community')) setLayerData('community', spotsToGeoJSON(filterSpots(communitySpotsRaw)));
+  if (map.getSource('live')) setLayerData('live', spotsToGeoJSON(filterSpots(liveSpots)));
+}
+
+document.querySelectorAll('.filter-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const cls = chip.dataset.cls;
+    if (activeCategories.has(cls)) {
+      activeCategories.delete(cls);
+      chip.classList.remove('active');
+    } else {
+      activeCategories.add(cls);
+      chip.classList.add('active');
+    }
+    applyFilters();
+  });
+});
 
 map.on('load', () => {
   loadOfficialSpots();
