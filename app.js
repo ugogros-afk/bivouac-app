@@ -38,17 +38,21 @@ function classify(tags) {
 // contrairement à des marqueurs DOM individuels qui ralentissent tout au-delà de quelques centaines).
 
 function spotsToGeoJSON(spots) {
-  // spots: [lat, lon, name, cls, fee, addr, phone, website]
+  // spots: [lat, lon, name, cls, fee, addr, phone, website, id (optionnel)]
   return {
     type: 'FeatureCollection',
     features: spots.map((s) => {
-      const [lat, lon, name, cls, fee, addr, phone, website] = s;
+      const [lat, lon, name, cls, fee, addr, phone, website, id] = s;
+      // Les spots officiels n'ont pas d'identifiant propre : on en fabrique un stable
+      // à partir des coordonnées, pour pouvoir y accrocher des avis/photos.
+      const spotId = id || (lat.toFixed(6) + '_' + lon.toFixed(6));
       return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [lon, lat] },
         properties: {
           name: name || '(sans nom)', cls, fee: fee || '',
-          addr: addr || '', phone: phone || '', website: website || ''
+          addr: addr || '', phone: phone || '', website: website || '',
+          spotId
         }
       };
     })
@@ -69,7 +73,9 @@ function popupHtml(p, lat, lon) {
   html += '<div style="display:flex;gap:6px;margin-top:8px">';
   html += '<a href="' + gmaps + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#1a73e8;color:#fff;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Google Maps</a>';
   html += '<a href="' + waze + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#33ccff;color:#003;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Waze</a>';
-  html += '</div></div>';
+  html += '</div>';
+  html += '<button onclick="openAvisModal(\'' + p.spotId + '\',' + lat + ',' + lon + ')" style="width:100%;margin-top:6px;background:#f1f1f1;border:none;color:#333;padding:8px;border-radius:6px;font-size:12px;font-weight:600">💬 Avis & photos</button>';
+  html += '</div>';
   return html;
 }
 
@@ -277,9 +283,9 @@ const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE
 async function loadCommunitySpots() {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('spots').select('lat, lon, name');
+    const { data, error } = await sb.from('spots').select('id, lat, lon, name');
     if (error) throw error;
-    const geojson = spotsToGeoJSON(data.map(s => [s.lat, s.lon, s.name, 'community', '', '', '', '']));
+    const geojson = spotsToGeoJSON(data.map(s => [s.lat, s.lon, s.name, 'community', '', '', '', '', s.id]));
     if (!map.getSource('community')) {
       addSpotLayer('community', geojson, false);
     } else {
@@ -317,4 +323,103 @@ map.on('load', () => {
       { timeout: 5000 }
     );
   }
+});
+
+// --- Avis & photos sur les emplacements (commentaires + notes + photos, partagés via Supabase) ---
+let currentAvisSpot = null;
+const avisModal = document.getElementById('avisModal');
+const avisList = document.getElementById('avisList');
+const avisText = document.getElementById('avisText');
+const avisPhoto = document.getElementById('avisPhoto');
+const avisSubmit = document.getElementById('avisSubmit');
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function renderAvisList(items) {
+  if (!items.length) {
+    avisList.innerHTML = '<p style="color:#888;font-size:13px">Aucun avis pour l\'instant. Soyez le premier à en laisser un !</p>';
+    return;
+  }
+  avisList.innerHTML = items.map((it) => {
+    let html = '<div class="avis-item">';
+    if (it.photo_url) html += '<img src="' + it.photo_url + '" loading="lazy">';
+    if (it.text) html += '<p>' + escapeHtml(it.text) + '</p>';
+    html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span>';
+    html += '</div>';
+    return html;
+  }).join('');
+}
+
+async function openAvisModal(spotId, lat, lon) {
+  if (!sb) { alert('Connexion à la base de données indisponible.'); return; }
+  currentAvisSpot = { id: spotId, lat, lon };
+  avisText.value = '';
+  avisPhoto.value = '';
+  avisModal.classList.add('show');
+  avisList.innerHTML = '<p style="color:#888;font-size:13px">Chargement…</p>';
+  try {
+    const { data, error } = await sb
+      .from('comments')
+      .select('text, photo_url, created_at')
+      .eq('spot_id', spotId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    renderAvisList(data);
+  } catch (e) {
+    avisList.innerHTML = '<p style="color:#b71c1c;font-size:13px">Erreur de chargement des avis.</p>';
+  }
+}
+
+function closeAvisModal() {
+  avisModal.classList.remove('show');
+  currentAvisSpot = null;
+}
+
+async function submitAvis() {
+  if (!currentAvisSpot || !sb) return;
+  const text = avisText.value.trim();
+  const file = avisPhoto.files[0];
+  if (!text && !file) {
+    alert('Ajoutez un commentaire ou une photo avant d\'envoyer.');
+    return;
+  }
+  avisSubmit.disabled = true;
+  avisSubmit.textContent = 'Envoi…';
+  try {
+    let photoUrl = null;
+    if (file) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = currentAvisSpot.id + '_' + Date.now() + '.' + ext;
+      const { error: upErr } = await sb.storage.from('photos').upload(path, file);
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from('photos').getPublicUrl(path);
+      photoUrl = urlData.publicUrl;
+    }
+    const { error } = await sb.from('comments').insert({
+      spot_id: currentAvisSpot.id,
+      lat: currentAvisSpot.lat,
+      lon: currentAvisSpot.lon,
+      text: text || null,
+      photo_url: photoUrl
+    });
+    if (error) throw error;
+    avisText.value = '';
+    avisPhoto.value = '';
+    openAvisModal(currentAvisSpot.id, currentAvisSpot.lat, currentAvisSpot.lon);
+  } catch (e) {
+    alert("Impossible d'envoyer cet avis : " + e.message);
+  } finally {
+    avisSubmit.disabled = false;
+    avisSubmit.textContent = 'Envoyer';
+  }
+}
+
+document.getElementById('avisClose').addEventListener('click', closeAvisModal);
+avisSubmit.addEventListener('click', submitAvis);
+avisModal.addEventListener('click', (e) => {
+  if (e.target === avisModal) closeAvisModal();
 });

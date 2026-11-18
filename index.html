@@ -38,6 +38,38 @@
   }
   #status.show { display:block; }
   #status.error { background: rgba(183,28,28,.85); }
+
+  #avisModal {
+    position: fixed; inset: 0; z-index: 2000; display: none;
+    background: rgba(0,0,0,.5);
+  }
+  #avisModal.show { display: block; }
+  #avisSheet {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 80vh;
+    background: #fff; border-radius: 16px 16px 0 0; padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #avisClose {
+    position: absolute; top: 10px; right: 14px; border: none; background: none;
+    font-size: 20px; color: #888; padding: 4px 8px;
+  }
+  #avisTitle { margin: 0 0 10px; padding-right: 30px; font-size: 16px; color: #1b5e20; }
+  #avisList { overflow-y: auto; flex: 1; margin-bottom: 10px; }
+  .avis-item { border-bottom: 1px solid #eee; padding: 8px 0; }
+  .avis-item img { max-width: 100%; border-radius: 8px; margin-bottom: 6px; display:block; }
+  .avis-item p { margin: 0 0 4px; font-size: 14px; }
+  .avis-date { font-size: 11px; color: #999; }
+  #avisText {
+    width: 100%; min-height: 60px; border: 1px solid #ddd; border-radius: 8px;
+    padding: 8px; font-size: 14px; margin-bottom: 8px; font-family: inherit; resize: vertical;
+  }
+  #avisPhoto { margin-bottom: 10px; font-size: 13px; }
+  #avisSubmit {
+    background: #1b5e20; color: #fff; border: none; border-radius: 24px;
+    padding: 12px; font-size: 15px; font-weight: 600;
+  }
+  #avisSubmit:disabled { opacity: .6; }
 </style>
 </head>
 <body>
@@ -51,6 +83,17 @@
   <span class="legend-item"><span class="dot" style="background:#1565c0"></span>Camping</span>
   <span class="legend-item"><span class="dot" style="background:#e65100"></span>Bivouac</span>
   <span class="legend-item"><span class="dot" style="background:#8e24aa"></span>Ajouté par la communauté</span>
+</div>
+
+<div id="avisModal">
+  <div id="avisSheet">
+    <button id="avisClose">✕</button>
+    <h3 id="avisTitle">Avis & photos</h3>
+    <div id="avisList"></div>
+    <textarea id="avisText" placeholder="Votre avis, une note sur ce spot..."></textarea>
+    <input type="file" id="avisPhoto" accept="image/*">
+    <button id="avisSubmit">Envoyer</button>
+  </div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

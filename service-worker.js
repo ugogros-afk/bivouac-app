@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bivouac-v4';
+const CACHE_NAME = 'bivouac-v5';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,7 +6,8 @@ const APP_SHELL = [
   './manifest.json',
   './spots-data.js',
   'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'
+  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js',
+  'https://unpkg.com/@supabase/supabase-js@2'
 ];
 
 self.addEventListener('install', (event) => {
