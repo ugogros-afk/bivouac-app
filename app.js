@@ -295,30 +295,14 @@ const SUPABASE_URL = 'https://lbjbizpusplzsblienmt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_NzQssCs8Gfyw__MNeet5xA_mJbmzHbC';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
-// La table `spots` n'a pas de colonne dédiée pour des notes libres : on les encode dans le
-// champ `name`, séparées par le caractère réservé ci-dessous (jamais tapé par un humain).
-// -> Si un jour une vraie colonne `notes` est ajoutée (ALTER TABLE spots ADD COLUMN notes text;),
-//    remplacer encodeSpotName/decodeSpotName par un accès direct à cette colonne.
-const NOTES_SEP = '\u241F';
-
-function encodeSpotName(name, notes) {
-  return notes ? (name + NOTES_SEP + notes) : name;
-}
-function decodeSpotName(stored) {
-  if (!stored || stored.indexOf(NOTES_SEP) === -1) return { name: stored, notes: '' };
-  const parts = stored.split(NOTES_SEP);
-  return { name: parts[0], notes: parts.slice(1).join(NOTES_SEP) };
-}
-
 async function loadCommunitySpots() {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('spots').select('id, lat, lon, name, category');
+    const { data, error } = await sb.from('spots').select('id, lat, lon, name, category, notes');
     if (error) throw error;
     const tuples = data.map((s) => {
-      const { name, notes } = decodeSpotName(s.name);
       const cls = s.category || 'community';
-      return [s.lat, s.lon, name, cls, '', notes, '', '', s.id];
+      return [s.lat, s.lon, s.name, cls, '', s.notes || '', '', '', s.id];
     });
     const geojson = spotsToGeoJSON(tuples);
     if (!map.getSource('community')) {
@@ -345,33 +329,14 @@ map.on('load', () => {
 });
 
 // --- Avis, notes par étoiles & photos sur les emplacements (partagés via Supabase) ---
-// La table `comments` n'a pas de colonne dédiée pour la note (1 à 5 étoiles) : elle est encodée
-// au début du champ `text` sous la forme "⭐<note>⭐" suivie, le cas échéant, du commentaire.
-// -> Si un jour une vraie colonne `rating` est ajoutée
-//    (ALTER TABLE comments ADD COLUMN rating smallint CHECK (rating IS NULL OR rating BETWEEN 1 AND 5);),
-//    remplacer encodeRatingText/decodeRatingText par un accès direct à cette colonne.
-const RATING_RE = /^\u2b50([1-5])\u2b50\n?([\s\S]*)$/;
-
-function encodeRatingText(rating, text) {
-  if (rating) return '\u2b50' + rating + '\u2b50' + (text ? '\n' + text : '');
-  return text || null;
-}
-function decodeRatingText(stored) {
-  if (!stored) return { rating: null, text: '' };
-  const m = stored.match(RATING_RE);
-  if (m) return { rating: Number(m[1]), text: m[2] || '' };
-  return { rating: null, text: stored };
-}
-
 async function loadRatingSummary(spotId, popup) {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('comments').select('text').eq('spot_id', spotId);
+    const { data, error } = await sb.from('comments').select('rating').eq('spot_id', spotId);
     if (error) throw error;
     let sum = 0, count = 0;
     data.forEach((row) => {
-      const { rating } = decodeRatingText(row.text);
-      if (rating) { sum += rating; count++; }
+      if (row.rating) { sum += row.rating; count++; }
     });
     const el = popup.getElement && popup.getElement().querySelector('.rating-summary');
     if (!el) return; // le popup a peut-être déjà été fermé
@@ -403,11 +368,10 @@ function renderAvisList(items) {
     return;
   }
   avisList.innerHTML = items.map((it) => {
-    const { rating, text } = decodeRatingText(it.text);
     let html = '<div class="avis-item">';
-    if (rating) html += '<div class="avis-stars">' + '★'.repeat(rating) + '☆'.repeat(5 - rating) + '</div>';
+    if (it.rating) html += '<div class="avis-stars">' + '★'.repeat(it.rating) + '☆'.repeat(5 - it.rating) + '</div>';
     if (it.photo_url) html += '<img src="' + it.photo_url + '" loading="lazy">';
-    if (text) html += '<p>' + escapeHtml(text) + '</p>';
+    if (it.text) html += '<p>' + escapeHtml(it.text) + '</p>';
     html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span>';
     html += '</div>';
     return html;
@@ -425,7 +389,7 @@ async function openAvisModal(spotId, lat, lon) {
   try {
     const { data, error } = await sb
       .from('comments')
-      .select('text, photo_url, created_at')
+      .select('text, photo_url, created_at, rating')
       .eq('spot_id', spotId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -460,12 +424,12 @@ async function submitAvis() {
       const { data: urlData } = sb.storage.from('photos').getPublicUrl(path);
       photoUrl = urlData.publicUrl;
     }
-    const storedText = encodeRatingText(selectedRating, text);
     const { error } = await sb.from('comments').insert({
       spot_id: currentAvisSpot.id,
       lat: currentAvisSpot.lat,
       lon: currentAvisSpot.lon,
-      text: storedText,
+      text: text || null,
+      rating: selectedRating || null,
       photo_url: photoUrl
     });
     if (error) throw error;
@@ -646,8 +610,9 @@ addSpotSubmitBtn.addEventListener('click', async () => {
     const { error } = await sb.from('spots').insert({
       lat: pendingSpotCoords.lat,
       lon: pendingSpotCoords.lon,
-      name: encodeSpotName(name, notes),
-      category
+      name,
+      category,
+      notes: notes || null
     });
     if (error) throw error;
     closeAddSpotModal();
