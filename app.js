@@ -773,6 +773,10 @@ const accountEmailLabel = document.getElementById('accountEmailLabel');
 const logoutBtn = document.getElementById('logoutBtn');
 
 let pendingConfirmEmail = null;
+// Tant qu'on n'est pas connecté, l'appli est verrouillée sur l'écran de compte :
+// impossible de voir la carte ou de fermer la modale.
+let authGateActive = false;
+const accountCloseBtn = document.getElementById('accountClose');
 
 function showAccountView(view) {
   accountLoggedOut.style.display = view === 'loggedOut' ? 'block' : 'none';
@@ -789,14 +793,25 @@ function showAuthTab(tab) {
 tabLogin.addEventListener('click', () => showAuthTab('login'));
 tabSignup.addEventListener('click', () => showAuthTab('signup'));
 
+function setAuthGate(active) {
+  authGateActive = active;
+  accountCloseBtn.style.display = active ? 'none' : '';
+  bottomNav.style.display = active ? 'none' : 'flex';
+  if (active) {
+    accountModal.classList.add('show');
+  }
+}
+
 async function refreshAccountUI() {
-  if (!sb) { showAccountView('loggedOut'); return; }
+  if (!sb) { showAccountView('loggedOut'); setAuthGate(true); return; }
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     accountEmailLabel.textContent = session.user.email;
     showAccountView('loggedIn');
+    setAuthGate(false);
   } else {
     showAccountView('loggedOut');
+    setAuthGate(true);
   }
 }
 
@@ -805,6 +820,7 @@ function openAccountModal() {
   refreshAccountUI();
 }
 function closeAccountModal() {
+  if (authGateActive) return; // pas de carte tant qu'on n'est pas connecté
   accountModal.classList.remove('show');
   setActiveNav('map');
 }
@@ -816,10 +832,13 @@ navAccount.addEventListener('click', () => {
   setActiveNav('account');
   openAccountModal();
 });
-document.getElementById('accountClose').addEventListener('click', closeAccountModal);
+accountCloseBtn.addEventListener('click', closeAccountModal);
 accountModal.addEventListener('click', (e) => {
   if (e.target === accountModal) closeAccountModal();
 });
+
+// Vérifie l'état de connexion dès le chargement de la page (verrouille si non connecté).
+refreshAccountUI();
 
 loginSubmitBtn.addEventListener('click', async () => {
   loginErrorEl.textContent = '';
@@ -833,6 +852,7 @@ loginSubmitBtn.addEventListener('click', async () => {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await refreshAccountUI();
+    closeAccountModal();
   } catch (e) {
     loginErrorEl.textContent = e.message === 'Invalid login credentials'
       ? 'E-mail ou mot de passe incorrect.' : e.message;
@@ -857,6 +877,7 @@ signupSubmitBtn.addEventListener('click', async () => {
     if (data.session) {
       // La confirmation par e-mail est désactivée côté projet : le compte est actif tout de suite.
       await refreshAccountUI();
+      closeAccountModal();
     } else {
       pendingConfirmEmail = email;
       confirmEmailLabel.textContent = email;
@@ -885,6 +906,7 @@ confirmSubmitBtn.addEventListener('click', async () => {
     if (error) throw error;
     pendingConfirmEmail = null;
     await refreshAccountUI();
+    closeAccountModal();
   } catch (e) {
     confirmErrorEl.textContent = 'Code invalide ou expiré.';
   } finally {

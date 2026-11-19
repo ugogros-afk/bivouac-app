@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bivouac-v9';
+const CACHE_NAME = 'bivouac-v10';
 const APP_SHELL = [
   './',
   './index.html',
