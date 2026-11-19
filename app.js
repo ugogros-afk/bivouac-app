@@ -737,3 +737,195 @@ favListEl.addEventListener('click', (e) => {
     closeFavModal();
   }
 });
+
+// --- Navigation du bas (Carte / Compte) ---
+const navMap = document.getElementById('navMap');
+const navAccount = document.getElementById('navAccount');
+
+function setActiveNav(which) {
+  navMap.classList.toggle('active', which === 'map');
+  navAccount.classList.toggle('active', which === 'account');
+}
+
+// --- Compte utilisateur : email/mot de passe (+ Google/Apple à venir), confirmation par code ---
+const accountModal = document.getElementById('accountModal');
+const accountLoggedOut = document.getElementById('accountLoggedOut');
+const accountConfirm = document.getElementById('accountConfirm');
+const accountLoggedIn = document.getElementById('accountLoggedIn');
+const tabLogin = document.getElementById('tabLogin');
+const tabSignup = document.getElementById('tabSignup');
+const loginPane = document.getElementById('loginPane');
+const signupPane = document.getElementById('signupPane');
+const loginEmailInput = document.getElementById('loginEmail');
+const loginPasswordInput = document.getElementById('loginPassword');
+const loginSubmitBtn = document.getElementById('loginSubmit');
+const loginErrorEl = document.getElementById('loginError');
+const signupEmailInput = document.getElementById('signupEmail');
+const signupPasswordInput = document.getElementById('signupPassword');
+const signupSubmitBtn = document.getElementById('signupSubmit');
+const signupErrorEl = document.getElementById('signupError');
+const confirmEmailLabel = document.getElementById('confirmEmailLabel');
+const confirmCodeInput = document.getElementById('confirmCode');
+const confirmSubmitBtn = document.getElementById('confirmSubmit');
+const confirmResendBtn = document.getElementById('confirmResend');
+const confirmErrorEl = document.getElementById('confirmError');
+const accountEmailLabel = document.getElementById('accountEmailLabel');
+const logoutBtn = document.getElementById('logoutBtn');
+
+let pendingConfirmEmail = null;
+
+function showAccountView(view) {
+  accountLoggedOut.style.display = view === 'loggedOut' ? 'block' : 'none';
+  accountConfirm.style.display = view === 'confirm' ? 'block' : 'none';
+  accountLoggedIn.style.display = view === 'loggedIn' ? 'block' : 'none';
+}
+
+function showAuthTab(tab) {
+  tabLogin.classList.toggle('active', tab === 'login');
+  tabSignup.classList.toggle('active', tab === 'signup');
+  loginPane.style.display = tab === 'login' ? 'block' : 'none';
+  signupPane.style.display = tab === 'signup' ? 'block' : 'none';
+}
+tabLogin.addEventListener('click', () => showAuthTab('login'));
+tabSignup.addEventListener('click', () => showAuthTab('signup'));
+
+async function refreshAccountUI() {
+  if (!sb) { showAccountView('loggedOut'); return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && session.user) {
+    accountEmailLabel.textContent = session.user.email;
+    showAccountView('loggedIn');
+  } else {
+    showAccountView('loggedOut');
+  }
+}
+
+function openAccountModal() {
+  accountModal.classList.add('show');
+  refreshAccountUI();
+}
+function closeAccountModal() {
+  accountModal.classList.remove('show');
+  setActiveNav('map');
+}
+
+navMap.addEventListener('click', () => {
+  closeAccountModal();
+});
+navAccount.addEventListener('click', () => {
+  setActiveNav('account');
+  openAccountModal();
+});
+document.getElementById('accountClose').addEventListener('click', closeAccountModal);
+accountModal.addEventListener('click', (e) => {
+  if (e.target === accountModal) closeAccountModal();
+});
+
+loginSubmitBtn.addEventListener('click', async () => {
+  loginErrorEl.textContent = '';
+  const email = loginEmailInput.value.trim();
+  const password = loginPasswordInput.value;
+  if (!email || !password) { loginErrorEl.textContent = 'Renseignez votre e-mail et votre mot de passe.'; return; }
+  if (!sb) { loginErrorEl.textContent = 'Connexion à la base de données indisponible.'; return; }
+  loginSubmitBtn.disabled = true;
+  loginSubmitBtn.textContent = 'Connexion…';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    await refreshAccountUI();
+  } catch (e) {
+    loginErrorEl.textContent = e.message === 'Invalid login credentials'
+      ? 'E-mail ou mot de passe incorrect.' : e.message;
+  } finally {
+    loginSubmitBtn.disabled = false;
+    loginSubmitBtn.textContent = 'Se connecter';
+  }
+});
+
+signupSubmitBtn.addEventListener('click', async () => {
+  signupErrorEl.textContent = '';
+  const email = signupEmailInput.value.trim();
+  const password = signupPasswordInput.value;
+  if (!email || !password) { signupErrorEl.textContent = 'Renseignez un e-mail et un mot de passe.'; return; }
+  if (password.length < 6) { signupErrorEl.textContent = 'Le mot de passe doit faire au moins 6 caractères.'; return; }
+  if (!sb) { signupErrorEl.textContent = 'Connexion à la base de données indisponible.'; return; }
+  signupSubmitBtn.disabled = true;
+  signupSubmitBtn.textContent = 'Création…';
+  try {
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if (error) throw error;
+    if (data.session) {
+      // La confirmation par e-mail est désactivée côté projet : le compte est actif tout de suite.
+      await refreshAccountUI();
+    } else {
+      pendingConfirmEmail = email;
+      confirmEmailLabel.textContent = email;
+      confirmCodeInput.value = '';
+      confirmErrorEl.textContent = '';
+      confirmErrorEl.style.color = '#b71c1c';
+      showAccountView('confirm');
+    }
+  } catch (e) {
+    signupErrorEl.textContent = e.message;
+  } finally {
+    signupSubmitBtn.disabled = false;
+    signupSubmitBtn.textContent = 'Créer mon compte';
+  }
+});
+
+confirmSubmitBtn.addEventListener('click', async () => {
+  confirmErrorEl.style.color = '#b71c1c';
+  confirmErrorEl.textContent = '';
+  const token = confirmCodeInput.value.trim();
+  if (!pendingConfirmEmail || !token) { confirmErrorEl.textContent = 'Saisissez le code reçu par e-mail.'; return; }
+  confirmSubmitBtn.disabled = true;
+  confirmSubmitBtn.textContent = 'Vérification…';
+  try {
+    const { error } = await sb.auth.verifyOtp({ email: pendingConfirmEmail, token, type: 'signup' });
+    if (error) throw error;
+    pendingConfirmEmail = null;
+    await refreshAccountUI();
+  } catch (e) {
+    confirmErrorEl.textContent = 'Code invalide ou expiré.';
+  } finally {
+    confirmSubmitBtn.disabled = false;
+    confirmSubmitBtn.textContent = 'Valider le code';
+  }
+});
+
+confirmResendBtn.addEventListener('click', async () => {
+  if (!pendingConfirmEmail) return;
+  confirmResendBtn.disabled = true;
+  try {
+    const { error } = await sb.auth.resend({ type: 'signup', email: pendingConfirmEmail });
+    if (error) throw error;
+    confirmErrorEl.style.color = '#1b5e20';
+    confirmErrorEl.textContent = 'Nouveau code envoyé.';
+  } catch (e) {
+    confirmErrorEl.style.color = '#b71c1c';
+    confirmErrorEl.textContent = e.message;
+  } finally {
+    confirmResendBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener('click', async () => {
+  if (!sb) return;
+  logoutBtn.disabled = true;
+  try {
+    await sb.auth.signOut();
+    await refreshAccountUI();
+    showAuthTab('login');
+  } finally {
+    logoutBtn.disabled = false;
+  }
+});
+
+// Google/Apple : les boutons sont prêts côté code mais désactivés tant que les fournisseurs
+// OAuth ne sont pas configurés dans le tableau de bord Supabase (Authentication > Providers).
+// document.getElementById('oauthGoogle').addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } }));
+// document.getElementById('oauthApple').addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } }));
+
+if (sb) {
+  sb.auth.onAuthStateChange(() => refreshAccountUI());
+}
