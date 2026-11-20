@@ -429,7 +429,18 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      navigator.serviceWorker.register('service-worker.js').then((reg) => {
+        // Force une vérification de mise à jour à chaque chargement, pour ne pas rester
+        // bloqué sur une ancienne version en cache (problème rencontré en usage réel).
+        reg.update();
+      }).catch(() => {});
+    });
+    // Dès qu'une nouvelle version prend le contrôle, on recharge une fois automatiquement.
+    let swRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
     });
   }
 </script>
