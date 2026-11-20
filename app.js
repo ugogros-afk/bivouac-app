@@ -34,7 +34,7 @@ function escapeAttr(s) {
   return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-const COLORS = { aire: '#4ADE80', camping: '#60A5FA', bivouac: '#FB923C', community: '#C084FC' };
+const COLORS = { aire: '#4ADE80', camping: '#38BDF8', bivouac: '#FB923C', community: '#C084FC' };
 
 // --- Filtre par type de spot (barre de chips en haut) ---
 // Toutes les catégories sont actives par défaut ; on retire celles décochées.
@@ -120,7 +120,7 @@ function criteriaHtml(p) {
 const CLS_LABELS = { aire: 'Aire camping-car', camping: 'Camping', bivouac: 'Bivouac', community: 'Communauté' };
 
 function popupHtml(p, lat, lon) {
-  const color = COLORS[p.cls] || '#9BAA9C';
+  const color = COLORS[p.cls] || '#9196A1';
   const gmaps = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon;
   const waze = 'https://waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
   let html = '<div class="bv-popup-card">';
@@ -164,9 +164,9 @@ function addSpotLayer(id, geojson, clustered) {
       source: id,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-color': '#1c3320',
+        'circle-color': '#15151D',
         'circle-stroke-width': 2,
-        'circle-stroke-color': 'rgba(255,255,255,0.14)',
+        'circle-stroke-color': 'rgba(255,255,255,0.10)',
         'circle-opacity': 0.92,
         'circle-radius': ['step', ['get', 'point_count'], 16, 50, 20, 200, 26]
       }
@@ -195,7 +195,7 @@ function addSpotLayer(id, geojson, clustered) {
         'community', COLORS.community,
         '#555'],
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#0c130c'
+      'circle-stroke-color': '#0A0A0F'
     }
   });
 
@@ -1053,16 +1053,16 @@ const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
 forgotPasswordBtn.addEventListener('click', async () => {
   loginErrorEl.style.color = '';
   const email = loginEmailInput.value.trim();
-  if (!email) { loginErrorEl.style.color = '#ff8a80'; loginErrorEl.textContent = "Saisissez d'abord votre e-mail ci-dessus."; return; }
-  if (!sb) { loginErrorEl.style.color = '#ff8a80'; loginErrorEl.textContent = 'Connexion à la base de données indisponible.'; return; }
+  if (!email) { loginErrorEl.style.color = '#F87171'; loginErrorEl.textContent = "Saisissez d'abord votre e-mail ci-dessus."; return; }
+  if (!sb) { loginErrorEl.style.color = '#F87171'; loginErrorEl.textContent = 'Connexion à la base de données indisponible.'; return; }
   forgotPasswordBtn.disabled = true;
   try {
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
     if (error) throw error;
-    loginErrorEl.style.color = '#8bc9a0';
+    loginErrorEl.style.color = '#4ADE80';
     loginErrorEl.textContent = 'E-mail de réinitialisation envoyé (si ce compte existe).';
   } catch (e) {
-    loginErrorEl.style.color = '#ff8a80';
+    loginErrorEl.style.color = '#F87171';
     loginErrorEl.textContent = e.message;
   } finally {
     forgotPasswordBtn.disabled = false;
@@ -1090,7 +1090,7 @@ signupSubmitBtn.addEventListener('click', async () => {
       confirmEmailLabel.textContent = email;
       confirmCodeInput.value = '';
       confirmErrorEl.textContent = '';
-      confirmErrorEl.style.color = '#ff8a80';
+      confirmErrorEl.style.color = '#F87171';
       showAccountView('confirm');
     }
   } catch (e) {
@@ -1102,7 +1102,7 @@ signupSubmitBtn.addEventListener('click', async () => {
 });
 
 confirmSubmitBtn.addEventListener('click', async () => {
-  confirmErrorEl.style.color = '#ff8a80';
+  confirmErrorEl.style.color = '#F87171';
   confirmErrorEl.textContent = '';
   const token = confirmCodeInput.value.trim();
   if (!pendingConfirmEmail || !token) { confirmErrorEl.textContent = 'Saisissez le code reçu par e-mail.'; return; }
@@ -1136,10 +1136,10 @@ confirmResendBtn.addEventListener('click', async () => {
   try {
     const { error } = await sb.auth.resend({ type: 'signup', email: pendingConfirmEmail });
     if (error) throw error;
-    confirmErrorEl.style.color = '#8bc9a0';
+    confirmErrorEl.style.color = '#4ADE80';
     confirmErrorEl.textContent = 'Nouveau code envoyé.';
   } catch (e) {
-    confirmErrorEl.style.color = '#ff8a80';
+    confirmErrorEl.style.color = '#F87171';
     confirmErrorEl.textContent = e.message;
   } finally {
     confirmResendBtn.disabled = false;
@@ -1243,7 +1243,7 @@ profileSaveBtn.addEventListener('click', async () => {
     profileSavedEl.textContent = 'Profil enregistré.';
     setTimeout(() => { profileSavedEl.textContent = ''; }, 2500);
   } catch (e) {
-    profileSavedEl.style.color = '#ff8a80';
+    profileSavedEl.style.color = '#F87171';
     profileSavedEl.textContent = "Erreur : " + e.message;
   } finally {
     profileSaveBtn.disabled = false;
@@ -1566,7 +1566,7 @@ async function renderItinerarySteps() {
           '<div class="itin-suggestions">' +
             seg.suggestions.map((s) =>
               '<button type="button" class="itin-suggestion-card" data-lat="' + s.lat + '" data-lon="' + s.lon + '" data-name="' + escapeAttr(s.name) + '">' +
-                '<div class="itin-suggestion-top"><span class="dot" style="background:' + (COLORS[s.cls] || '#9BAA9C') + '"></span>' +
+                '<div class="itin-suggestion-top"><span class="dot" style="background:' + (COLORS[s.cls] || '#9196A1') + '"></span>' +
                 '<span class="itin-suggestion-name">' + escapeHtml(s.name) + '</span></div>' +
                 '<span class="itin-suggestion-dist">+' + s.detourKm.toFixed(1) + ' km de détour (approx.)</span>' +
               '</button>'
@@ -1614,7 +1614,7 @@ itinerarySaveBtn.addEventListener('click', async () => {
     itinerarySaveStatus.textContent = 'Itinéraire enregistré.';
     setTimeout(() => { itinerarySaveStatus.textContent = ''; }, 2500);
   } catch (e) {
-    itinerarySaveStatus.style.color = '#ff8a80';
+    itinerarySaveStatus.style.color = '#F87171';
     itinerarySaveStatus.textContent = 'Erreur : ' + e.message;
   } finally {
     itinerarySaveBtn.disabled = false;
