@@ -1089,6 +1089,14 @@ confirmSubmitBtn.addEventListener('click', async () => {
   }
 });
 
+const confirmBackBtn = document.getElementById('confirmBack');
+confirmBackBtn.addEventListener('click', () => {
+  pendingConfirmEmail = null;
+  confirmErrorEl.textContent = '';
+  showAccountView('loggedOut');
+  showAuthTab('signup');
+});
+
 confirmResendBtn.addEventListener('click', async () => {
   if (!pendingConfirmEmail) return;
   confirmResendBtn.disabled = true;
