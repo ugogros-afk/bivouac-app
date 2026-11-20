@@ -56,11 +56,11 @@ function classify(tags) {
 // contrairement à des marqueurs DOM individuels qui ralentissent tout au-delà de quelques centaines).
 
 function spotsToGeoJSON(spots) {
-  // spots: [lat, lon, name, cls, fee, addr, phone, website, id (optionnel)]
+  // spots: [lat, lon, name, cls, fee, addr, phone, website, id (optionnel), legalStatus, vehicleConstraints, hikingConstraints]
   return {
     type: 'FeatureCollection',
     features: spots.map((s) => {
-      const [lat, lon, name, cls, fee, addr, phone, website, id] = s;
+      const [lat, lon, name, cls, fee, addr, phone, website, id, legalStatus, vehicleConstraints, hikingConstraints] = s;
       // Les spots officiels n'ont pas d'identifiant propre : on en fabrique un stable
       // à partir des coordonnées, pour pouvoir y accrocher des avis/photos/favoris.
       const spotId = id || (lat.toFixed(6) + '_' + lon.toFixed(6));
@@ -70,11 +70,51 @@ function spotsToGeoJSON(spots) {
         properties: {
           name: name || '(sans nom)', cls, fee: fee || '',
           addr: addr || '', phone: phone || '', website: website || '',
-          spotId
+          spotId,
+          legalStatus: legalStatus || '',
+          vehicleConstraints: vehicleConstraints ? JSON.stringify(vehicleConstraints) : '',
+          hikingConstraints: hikingConstraints ? JSON.stringify(hikingConstraints) : ''
         }
       };
     })
   };
+}
+
+const LEGAL_STATUS_LABELS = {
+  autorise_officiel: '✅ Autorisé officiellement',
+  tolere: '🟡 Toléré',
+  interdit_signale: '🚫 Interdit (signalé)',
+  incertain: '❔ Statut incertain'
+};
+
+function legalBadgeHtml(status) {
+  if (!status || !LEGAL_STATUS_LABELS[status]) return '';
+  return '<div class="legal-badge legal-' + status + '">' + LEGAL_STATUS_LABELS[status] + '</div>';
+}
+
+function criteriaHtml(p) {
+  const chips = [];
+  if (p.vehicleConstraints) {
+    try {
+      const c = JSON.parse(p.vehicleConstraints);
+      if (c.height_limit_m) chips.push('📏 Hauteur max ' + c.height_limit_m + ' m');
+      if (c.has_water) chips.push('🚰 Point d\'eau');
+      if (c.has_dump_station) chips.push('🚽 Vidange');
+      if (c.price_indicative) chips.push('💶 ' + escapeHtml(c.price_indicative));
+    } catch (e) { /* données mal formées : on ignore */ }
+  }
+  if (p.hikingConstraints) {
+    try {
+      const c = JSON.parse(p.hikingConstraints);
+      if (c.walk_distance_m) chips.push('🚶 ' + c.walk_distance_m + ' m de marche');
+      if (c.elevation_gain_m) chips.push('⛰️ ' + c.elevation_gain_m + ' m D+');
+      if (c.exposure === 'abrite') chips.push('🌲 Abrité');
+      if (c.exposure === 'expose') chips.push('☀️ Exposé');
+      if (c.fire_allowed) chips.push('🔥 Feu autorisé');
+    } catch (e) { /* données mal formées : on ignore */ }
+  }
+  if (!chips.length) return '';
+  return '<div class="spot-criteria">' + chips.map((c) => '<span>' + c + '</span>').join('') + '</div>';
 }
 
 function popupHtml(p, lat, lon) {
@@ -83,8 +123,10 @@ function popupHtml(p, lat, lon) {
   const waze = 'https://waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
   let html = '<div style="min-width:180px">';
   html += '<strong>' + escapeHtml(p.name) + '</strong><br>';
+  html += legalBadgeHtml(p.legalStatus);
   html += '<div class="rating-summary" style="font-size:12px;color:#f5a623;margin:2px 0">Chargement de la note…</div>';
   html += '<span style="color:' + color + '">' + escapeHtml(p.cls) + '</span>';
+  html += criteriaHtml(p);
   if (p.fee) html += '<br>Payant: ' + escapeHtml(p.fee);
   if (p.addr) html += '<br>' + escapeHtml(p.addr);
   if (p.phone) html += '<br>📞 ' + escapeHtml(p.phone);
@@ -309,11 +351,11 @@ let communitySpotsRaw = [];
 async function loadCommunitySpots() {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('spots').select('id, lat, lon, name, category, notes');
+    const { data, error } = await sb.from('spots').select('id, lat, lon, name, category, notes, legal_status, vehicle_constraints, hiking_constraints');
     if (error) throw error;
     const tuples = data.map((s) => {
       const cls = s.category || 'community';
-      return [s.lat, s.lon, s.name, cls, '', s.notes || '', '', '', s.id];
+      return [s.lat, s.lon, s.name, cls, '', s.notes || '', '', '', s.id, s.legal_status, s.vehicle_constraints, s.hiking_constraints];
     });
     communitySpotsRaw = tuples;
     const geojson = spotsToGeoJSON(filterSpots(tuples));
@@ -401,11 +443,13 @@ function renderAvisList(items) {
     return;
   }
   avisList.innerHTML = items.map((it) => {
-    let html = '<div class="avis-item">';
+    const isReport = it.report_type === 'signalement_changement';
+    let html = '<div class="avis-item' + (isReport ? ' is-report' : '') + '">';
+    if (isReport) html += '<div class="avis-report-label">⚠️ Signalement</div>';
     if (it.rating) html += '<div class="avis-stars">' + '★'.repeat(it.rating) + '☆'.repeat(5 - it.rating) + '</div>';
     if (it.photo_url) html += '<img src="' + it.photo_url + '" loading="lazy">';
     if (it.text) html += '<p>' + escapeHtml(it.text) + '</p>';
-    html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span>';
+    html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + ' à ' + new Date(it.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</span>';
     html += '</div>';
     return html;
   }).join('');
@@ -416,13 +460,14 @@ async function openAvisModal(spotId, lat, lon) {
   currentAvisSpot = { id: spotId, lat, lon };
   avisText.value = '';
   avisPhoto.value = '';
+  reportTextInput.value = '';
   setAvisStars(0);
   avisModal.classList.add('show');
   avisList.innerHTML = '<p style="color:#888;font-size:13px">Chargement…</p>';
   try {
     const { data, error } = await sb
       .from('comments')
-      .select('text, photo_url, created_at, rating')
+      .select('text, photo_url, created_at, rating, report_type')
       .eq('spot_id', spotId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -478,6 +523,34 @@ async function submitAvis() {
   }
 }
 
+const reportTextInput = document.getElementById('reportText');
+const reportSubmitBtn = document.getElementById('reportSubmit');
+
+reportSubmitBtn.addEventListener('click', async () => {
+  if (!currentAvisSpot || !sb) return;
+  const text = reportTextInput.value.trim();
+  if (!text) { alert('Décrivez brièvement ce qui a changé.'); return; }
+  reportSubmitBtn.disabled = true;
+  reportSubmitBtn.textContent = '…';
+  try {
+    const { error } = await sb.from('comments').insert({
+      spot_id: currentAvisSpot.id,
+      lat: currentAvisSpot.lat,
+      lon: currentAvisSpot.lon,
+      text,
+      report_type: 'signalement_changement'
+    });
+    if (error) throw error;
+    reportTextInput.value = '';
+    openAvisModal(currentAvisSpot.id, currentAvisSpot.lat, currentAvisSpot.lon);
+  } catch (e) {
+    alert("Impossible d'envoyer ce signalement : " + e.message);
+  } finally {
+    reportSubmitBtn.disabled = false;
+    reportSubmitBtn.textContent = '⚠️ Signaler';
+  }
+});
+
 document.getElementById('avisClose').addEventListener('click', closeAvisModal);
 avisSubmit.addEventListener('click', submitAvis);
 avisModal.addEventListener('click', (e) => {
@@ -532,6 +605,24 @@ const addSpotPositionLabel = document.getElementById('addSpotPositionLabel');
 const addSpotNameInput = document.getElementById('addSpotName');
 const addSpotCategorySelect = document.getElementById('addSpotCategory');
 const addSpotNotesInput = document.getElementById('addSpotNotes');
+const addSpotLegalStatusSelect = document.getElementById('addSpotLegalStatus');
+const addSpotVehicleConstraints = document.getElementById('addSpotVehicleConstraints');
+const addSpotHikingConstraints = document.getElementById('addSpotHikingConstraints');
+const csHeightLimit = document.getElementById('csHeightLimit');
+const csHasWater = document.getElementById('csHasWater');
+const csHasDump = document.getElementById('csHasDump');
+const csPrice = document.getElementById('csPrice');
+const hcWalkDistance = document.getElementById('hcWalkDistance');
+const hcElevation = document.getElementById('hcElevation');
+const hcExposure = document.getElementById('hcExposure');
+const hcFireAllowed = document.getElementById('hcFireAllowed');
+
+function updateConstraintsVisibility() {
+  const isHiking = addSpotCategorySelect.value === 'bivouac';
+  addSpotVehicleConstraints.style.display = isHiking ? 'none' : 'block';
+  addSpotHikingConstraints.style.display = isHiking ? 'block' : 'none';
+}
+addSpotCategorySelect.addEventListener('change', updateConstraintsVisibility);
 const addSpotSubmitBtn = document.getElementById('addSpotSubmit');
 const addSpotAddressInput = document.getElementById('addSpotAddressInput');
 const addSpotAddressBtn = document.getElementById('addSpotAddressBtn');
@@ -552,6 +643,10 @@ function showAddSpotStep2() {
   addSpotNameInput.value = '';
   addSpotCategorySelect.value = 'aire';
   addSpotNotesInput.value = '';
+  addSpotLegalStatusSelect.value = 'incertain';
+  csHeightLimit.value = ''; csHasWater.checked = false; csHasDump.checked = false; csPrice.value = '';
+  hcWalkDistance.value = ''; hcElevation.value = ''; hcExposure.value = ''; hcFireAllowed.checked = false;
+  updateConstraintsVisibility();
 }
 
 function openAddSpotModal() {
@@ -637,6 +732,24 @@ addSpotSubmitBtn.addEventListener('click', async () => {
   }
   const category = addSpotCategorySelect.value;
   const notes = addSpotNotesInput.value.trim();
+  const legalStatus = addSpotLegalStatusSelect.value || null;
+  let vehicleConstraints = null;
+  let hikingConstraints = null;
+  if (category === 'bivouac') {
+    const hc = {};
+    if (hcWalkDistance.value) hc.walk_distance_m = Number(hcWalkDistance.value);
+    if (hcElevation.value) hc.elevation_gain_m = Number(hcElevation.value);
+    if (hcExposure.value) hc.exposure = hcExposure.value;
+    if (hcFireAllowed.checked) hc.fire_allowed = true;
+    if (Object.keys(hc).length) hikingConstraints = hc;
+  } else {
+    const vc = {};
+    if (csHeightLimit.value) vc.height_limit_m = Number(csHeightLimit.value);
+    if (csHasWater.checked) vc.has_water = true;
+    if (csHasDump.checked) vc.has_dump_station = true;
+    if (csPrice.value.trim()) vc.price_indicative = csPrice.value.trim();
+    if (Object.keys(vc).length) vehicleConstraints = vc;
+  }
   addSpotSubmitBtn.disabled = true;
   addSpotSubmitBtn.textContent = 'Enregistrement…';
   try {
@@ -645,7 +758,10 @@ addSpotSubmitBtn.addEventListener('click', async () => {
       lon: pendingSpotCoords.lon,
       name,
       category,
-      notes: notes || null
+      notes: notes || null,
+      legal_status: legalStatus,
+      vehicle_constraints: vehicleConstraints,
+      hiking_constraints: hikingConstraints
     });
     if (error) throw error;
     closeAddSpotModal();
@@ -661,41 +777,77 @@ addSpotSubmitBtn.addEventListener('click', async () => {
 });
 
 // --- Favoris / spots enregistrés ---
-// Pas de compte utilisateur pour l'instant : stockage local à cet appareil (localStorage).
-// Limite connue et actée : les favoris ne sont pas partagés entre les appareils d'une même personne.
-const FAVORITES_KEY = 'favorite_spots';
+// Synchronisés en base (table `favorites`), liés au compte connecté : disponibles sur tout appareil.
+// `favoritesCache` est un miroir en mémoire pour un accès synchrone depuis les popups de la carte.
+const FAVORITES_KEY = 'favorite_spots'; // ancien stockage local, gardé uniquement pour la migration ponctuelle
+let favoritesCache = [];
 
-function getFavorites() {
+function getLocalFavoritesForMigration() {
   try { return JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); } catch (e) { return []; }
 }
-function setFavorites(list) {
-  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(list)); } catch (e) { /* stockage indisponible : on ignore */ }
+
+async function loadFavoritesFromDb() {
+  if (!sb) { favoritesCache = []; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { favoritesCache = []; return; }
+  try {
+    const { data, error } = await sb.from('favorites').select('spot_id, name, lat, lon').eq('user_id', session.user.id);
+    if (error) throw error;
+    favoritesCache = (data || []).map((f) => ({ id: f.spot_id, name: f.name, lat: f.lat, lon: f.lon }));
+
+    // Migration ponctuelle : si des favoris existent encore en localStorage (ancien appareil) et
+    // que la base est vide pour ce compte, on les bascule une fois pour toutes en base.
+    const local = getLocalFavoritesForMigration();
+    if (local.length && favoritesCache.length === 0) {
+      const rows = local.map((f) => ({ user_id: session.user.id, spot_id: f.id, name: f.name, lat: f.lat, lon: f.lon }));
+      const { error: migErr } = await sb.from('favorites').upsert(rows, { onConflict: 'user_id,spot_id' });
+      if (!migErr) {
+        favoritesCache = local.map((f) => ({ id: f.id, name: f.name, lat: f.lat, lon: f.lon }));
+        localStorage.removeItem(FAVORITES_KEY);
+      }
+    }
+  } catch (e) {
+    console.error('Erreur chargement favoris', e);
+    favoritesCache = [];
+  }
 }
+
 function isFavorite(id) {
-  return getFavorites().some((f) => f.id === id);
+  return favoritesCache.some((f) => f.id === id);
 }
-function toggleFavorite(id, lat, lon, name) {
-  const list = getFavorites();
-  const idx = list.findIndex((f) => f.id === id);
-  if (idx >= 0) {
-    list.splice(idx, 1);
-    setFavorites(list);
+
+async function toggleFavorite(id, lat, lon, name) {
+  if (!sb) return isFavorite(id);
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return false;
+  const already = isFavorite(id);
+  if (already) {
+    const { error } = await sb.from('favorites').delete().eq('user_id', session.user.id).eq('spot_id', id);
+    if (error) { console.error(error); return true; }
+    favoritesCache = favoritesCache.filter((f) => f.id !== id);
     return false;
   }
-  list.push({ id, lat, lon, name });
-  setFavorites(list);
+  const { error } = await sb.from('favorites').upsert(
+    { user_id: session.user.id, spot_id: id, name, lat, lon },
+    { onConflict: 'user_id,spot_id' }
+  );
+  if (error) { console.error(error); return false; }
+  favoritesCache.push({ id, lat, lon, name });
   return true;
 }
-function onFavClick(btnEl, id, lat, lon, name) {
-  const nowFav = toggleFavorite(id, lat, lon, name);
+
+async function onFavClick(btnEl, id, lat, lon, name) {
+  btnEl.disabled = true;
+  const nowFav = await toggleFavorite(id, lat, lon, name);
   btnEl.textContent = nowFav ? '★ Retirer des favoris' : '☆ Ajouter aux favoris';
+  btnEl.disabled = false;
 }
 
 const favModal = document.getElementById('favModal');
 const favListEl = document.getElementById('favList');
 
 function renderFavList() {
-  const list = getFavorites();
+  const list = favoritesCache;
   if (!list.length) {
     favListEl.innerHTML = '<p style="color:#888;font-size:13px">Aucun favori pour l\'instant.</p>';
     return;
@@ -722,15 +874,13 @@ favModal.addEventListener('click', (e) => {
   if (e.target === favModal) closeFavModal();
 });
 
-favListEl.addEventListener('click', (e) => {
+favListEl.addEventListener('click', async (e) => {
   const i = e.target.getAttribute('data-i');
   if (i === null) return;
-  const list = getFavorites();
-  const fav = list[Number(i)];
+  const fav = favoritesCache[Number(i)];
   if (!fav) return;
   if (e.target.classList.contains('fav-remove')) {
-    list.splice(Number(i), 1);
-    setFavorites(list);
+    await toggleFavorite(fav.id, fav.lat, fav.lon, fav.name);
     renderFavList();
   } else {
     map.flyTo({ center: [fav.lon, fav.lat], zoom: 14 });
@@ -809,9 +959,12 @@ async function refreshAccountUI() {
     accountEmailLabel.textContent = session.user.email;
     showAccountView('loggedIn');
     setAuthGate(false);
+    await loadFavoritesFromDb();
+    await loadProfile();
   } else {
     showAccountView('loggedOut');
     setAuthGate(true);
+    favoritesCache = [];
   }
 }
 
@@ -940,6 +1093,49 @@ logoutBtn.addEventListener('click', async () => {
     showAuthTab('login');
   } finally {
     logoutBtn.disabled = false;
+  }
+});
+
+// --- Profil utilisateur : pseudo + type de voyageur (table `profiles`) ---
+const profilePseudoInput = document.getElementById('profilePseudo');
+const profileTravelerTypeSelect = document.getElementById('profileTravelerType');
+const profileSaveBtn = document.getElementById('profileSaveBtn');
+const profileSavedEl = document.getElementById('profileSaved');
+
+async function loadProfile() {
+  if (!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  try {
+    const { data, error } = await sb.from('profiles').select('pseudo, traveler_type').eq('user_id', session.user.id).maybeSingle();
+    if (error) throw error;
+    profilePseudoInput.value = (data && data.pseudo) || '';
+    profileTravelerTypeSelect.value = (data && data.traveler_type) || '';
+  } catch (e) {
+    console.error('Erreur chargement profil', e);
+  }
+}
+
+profileSaveBtn.addEventListener('click', async () => {
+  if (!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  profileSaveBtn.disabled = true;
+  profileSavedEl.textContent = '';
+  try {
+    const { error } = await sb.from('profiles').upsert({
+      user_id: session.user.id,
+      pseudo: profilePseudoInput.value.trim() || null,
+      traveler_type: profileTravelerTypeSelect.value || null
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    profileSavedEl.textContent = 'Profil enregistré.';
+    setTimeout(() => { profileSavedEl.textContent = ''; }, 2500);
+  } catch (e) {
+    profileSavedEl.style.color = '#b71c1c';
+    profileSavedEl.textContent = "Erreur : " + e.message;
+  } finally {
+    profileSaveBtn.disabled = false;
   }
 });
 

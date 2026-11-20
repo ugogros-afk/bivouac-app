@@ -147,6 +147,36 @@
   .oauth-btn:disabled { opacity: .5; }
   .oauth-note { font-size: 11px; color: #aaa; text-align: center; margin: -4px 0 10px; }
 
+  /* Statut légal */
+  .legal-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 10px;
+    border-radius: 12px; margin: 4px 0 8px;
+  }
+  .legal-autorise_officiel { background: #e8f5e9; color: #1b5e20; }
+  .legal-tolere { background: #fff8e1; color: #8a6500; }
+  .legal-interdit_signale { background: #ffebee; color: #b71c1c; }
+  .legal-incertain { background: #f1f1f1; color: #666; }
+  #addSpotLegalStatus { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 14px; margin-bottom: 8px; font-family: inherit; }
+  .constraints-block { border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .constraints-block label { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 8px; color: #444; }
+  .constraints-block input[type="number"], .constraints-block input[type="text"], .constraints-block select {
+    border: 1px solid #ddd; border-radius: 6px; padding: 7px; font-size: 13px; width: 100%; font-family: inherit;
+  }
+  .constraints-row { margin-bottom: 8px; }
+  .spot-criteria { font-size: 12px; color: #555; margin: 4px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .spot-criteria span { background: #f1f1f1; border-radius: 10px; padding: 2px 8px; }
+
+  /* Signalement de changement */
+  .report-row { display: flex; gap: 6px; margin: 10px 0; border-top: 1px solid #eee; padding-top: 10px; }
+  #reportText { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 13px; font-family: inherit; }
+  #reportSubmit { background: #fff3e0; color: #8a4b00; border: none; border-radius: 8px; padding: 0 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .avis-item.is-report { background: #fff8e1; border-radius: 8px; padding: 8px; border-bottom: none; margin-bottom: 6px; }
+  .avis-item.is-report .avis-report-label { font-weight: 700; color: #8a6500; font-size: 12px; }
+
+  /* Profil */
+  #profileForm input, #profileForm select { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 14px; margin-bottom: 8px; font-family: inherit; }
+  #profileSaved { font-size: 12px; color: #1b5e20; min-height: 16px; }
+
   /* Favoris */
   .fav-item {
     display: flex; align-items: center; justify-content: space-between;
@@ -188,6 +218,10 @@
     <button id="avisClose" class="sheet-close">✕</button>
     <h3 class="sheet-title">Avis & photos</h3>
     <div id="avisList" class="sheet-list"></div>
+    <div class="report-row">
+      <input type="text" id="reportText" placeholder="Signaler : ce n'est plus vrai, fermé, devenu payant…">
+      <button id="reportSubmit">⚠️ Signaler</button>
+    </div>
     <div id="avisStars">
       <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
     </div>
@@ -220,6 +254,29 @@
         <option value="camping">Camping</option>
         <option value="bivouac">Bivouac</option>
       </select>
+      <select id="addSpotLegalStatus">
+        <option value="incertain">Statut légal : incertain / non vérifié</option>
+        <option value="autorise_officiel">Autorisé officiellement</option>
+        <option value="tolere">Toléré</option>
+        <option value="interdit_signale">Interdit (signalé par la communauté)</option>
+      </select>
+
+      <div id="addSpotVehicleConstraints" class="constraints-block">
+        <div class="constraints-row"><label>Hauteur max si barrière (m)<input type="number" step="0.1" id="csHeightLimit" placeholder="ex: 3.2"></label></div>
+        <div class="constraints-row"><label><input type="checkbox" id="csHasWater" style="width:auto;margin:0">Point d'eau disponible</label></div>
+        <div class="constraints-row"><label><input type="checkbox" id="csHasDump" style="width:auto;margin:0">Vidange disponible</label></div>
+        <div class="constraints-row"><label>Prix indicatif<input type="text" id="csPrice" placeholder="ex: 10€/nuit ou gratuit"></label></div>
+      </div>
+
+      <div id="addSpotHikingConstraints" class="constraints-block" style="display:none">
+        <div class="constraints-row"><label>Distance de marche depuis un accès véhicule (m)<input type="number" id="hcWalkDistance" placeholder="ex: 800"></label></div>
+        <div class="constraints-row"><label>Dénivelé (m)<input type="number" id="hcElevation" placeholder="ex: 150"></label></div>
+        <div class="constraints-row"><label>Exposition
+          <select id="hcExposure"><option value="">Non précisé</option><option value="abrite">Abrité</option><option value="expose">Exposé</option></select>
+        </label></div>
+        <div class="constraints-row"><label><input type="checkbox" id="hcFireAllowed" style="width:auto;margin:0">Feu autorisé</label></div>
+      </div>
+
       <textarea id="addSpotNotes" placeholder="Notes (payant ou non, infos libres)…"></textarea>
       <button id="addSpotBack" class="sheet-secondary">← Changer la position</button>
       <button id="addSpotSubmit" class="sheet-submit">Enregistrer</button>
@@ -281,6 +338,17 @@
     <!-- Connecté -->
     <div id="accountLoggedIn" style="display:none">
       <p style="font-size:14px;color:#555;margin-top:0">Connecté en tant que <strong id="accountEmailLabel"></strong></p>
+      <div id="profileForm">
+        <input type="text" id="profilePseudo" placeholder="Pseudo" maxlength="30">
+        <select id="profileTravelerType">
+          <option value="">Type de voyageur (non précisé)</option>
+          <option value="camping_car">Camping-car / van</option>
+          <option value="bivouac_tente">Bivouac en tente</option>
+          <option value="les_deux">Les deux</option>
+        </select>
+        <button id="profileSaveBtn" class="sheet-secondary">Enregistrer mon profil</button>
+        <div id="profileSaved"></div>
+      </div>
       <button id="logoutBtn" class="sheet-secondary">Se déconnecter</button>
     </div>
   </div>
