@@ -34,7 +34,7 @@ function escapeAttr(s) {
   return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-const COLORS = { aire: '#2e7d32', camping: '#1565c0', bivouac: '#e65100', community: '#8e24aa' };
+const COLORS = { aire: '#4ADE80', camping: '#60A5FA', bivouac: '#FB923C', community: '#C084FC' };
 
 // --- Filtre par type de spot (barre de chips en haut) ---
 // Toutes les catégories sont actives par défaut ; on retire celles décochées.
@@ -117,26 +117,32 @@ function criteriaHtml(p) {
   return '<div class="spot-criteria">' + chips.map((c) => '<span>' + c + '</span>').join('') + '</div>';
 }
 
+const CLS_LABELS = { aire: 'Aire camping-car', camping: 'Camping', bivouac: 'Bivouac', community: 'Communauté' };
+
 function popupHtml(p, lat, lon) {
-  const color = COLORS[p.cls] || '#555';
+  const color = COLORS[p.cls] || '#9BAA9C';
   const gmaps = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon;
   const waze = 'https://waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
-  let html = '<div style="min-width:180px">';
-  html += '<strong>' + escapeHtml(p.name) + '</strong><br>';
-  html += legalBadgeHtml(p.legalStatus);
-  html += '<div class="rating-summary" style="font-size:12px;color:#f5a623;margin:2px 0">Chargement de la note…</div>';
-  html += '<span style="color:' + color + '">' + escapeHtml(p.cls) + '</span>';
-  html += criteriaHtml(p);
-  if (p.fee) html += '<br>Payant: ' + escapeHtml(p.fee);
-  if (p.addr) html += '<br>' + escapeHtml(p.addr);
-  if (p.phone) html += '<br>📞 ' + escapeHtml(p.phone);
-  if (p.website) html += '<br><a href="' + p.website + '" target="_blank" rel="noopener">Site web</a>';
-  html += '<div style="display:flex;gap:6px;margin-top:8px">';
-  html += '<a href="' + gmaps + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#1a73e8;color:#fff;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Google Maps</a>';
-  html += '<a href="' + waze + '" target="_blank" rel="noopener" style="flex:1;text-align:center;background:#33ccff;color:#003;padding:6px;border-radius:6px;text-decoration:none;font-size:12px">Waze</a>';
+  let html = '<div class="bv-popup-card">';
+  html += '<div class="bv-popup-head">';
+  html += '<div class="bv-popup-title-group">';
+  html += '<strong class="bv-popup-name">' + escapeHtml(p.name) + '</strong>';
+  html += '<div class="rating-summary">Chargement de la note…</div>';
   html += '</div>';
-  html += '<button onclick="openAvisModal(\'' + p.spotId + '\',' + lat + ',' + lon + ')" style="width:100%;margin-top:6px;background:#f1f1f1;border:none;color:#333;padding:8px;border-radius:6px;font-size:12px;font-weight:600">💬 Avis & photos</button>';
-  html += '<button class="fav-btn" onclick="onFavClick(this,\'' + p.spotId + '\',' + lat + ',' + lon + ',\'' + escapeAttr(p.name) + '\')" style="width:100%;margin-top:6px;background:#fff8e1;border:none;color:#8a6500;padding:8px;border-radius:6px;font-size:12px;font-weight:600">' +
+  html += legalBadgeHtml(p.legalStatus);
+  html += '</div>';
+  html += '<span class="bv-popup-cls" style="color:' + color + '">' + (CLS_LABELS[p.cls] || escapeHtml(p.cls)) + '</span>';
+  html += criteriaHtml(p);
+  if (p.fee) html += '<div class="bv-popup-line">💶 Payant : ' + escapeHtml(p.fee) + '</div>';
+  if (p.addr) html += '<div class="bv-popup-line">' + escapeHtml(p.addr) + '</div>';
+  if (p.phone) html += '<div class="bv-popup-line">📞 ' + escapeHtml(p.phone) + '</div>';
+  if (p.website) html += '<div class="bv-popup-line"><a href="' + p.website + '" target="_blank" rel="noopener">Site web</a></div>';
+  html += '<div class="bv-popup-row">';
+  html += '<a href="' + gmaps + '" target="_blank" rel="noopener" class="bv-popup-btn">Maps</a>';
+  html += '<a href="' + waze + '" target="_blank" rel="noopener" class="bv-popup-btn">Waze</a>';
+  html += '</div>';
+  html += '<button onclick="openAvisModal(\'' + p.spotId + '\',' + lat + ',' + lon + ')" class="bv-popup-btn bv-popup-btn-wide">💬 Avis & photos</button>';
+  html += '<button class="fav-btn bv-popup-btn bv-popup-btn-wide bv-popup-fav" onclick="onFavClick(this,\'' + p.spotId + '\',' + lat + ',' + lon + ',\'' + escapeAttr(p.name) + '\')">' +
     (isFavorite(p.spotId) ? '★ Retirer des favoris' : '☆ Ajouter aux favoris') + '</button>';
   html += '</div>';
   return html;
@@ -158,8 +164,10 @@ function addSpotLayer(id, geojson, clustered) {
       source: id,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-color': '#444',
-        'circle-opacity': 0.85,
+        'circle-color': '#1c3320',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': 'rgba(255,255,255,0.14)',
+        'circle-opacity': 0.92,
         'circle-radius': ['step', ['get', 'point_count'], 16, 50, 20, 200, 26]
       }
     });
@@ -187,7 +195,7 @@ function addSpotLayer(id, geojson, clustered) {
         'community', COLORS.community,
         '#555'],
       'circle-stroke-width': 2,
-      'circle-stroke-color': '#fff'
+      'circle-stroke-color': '#0c130c'
     }
   });
 
@@ -208,7 +216,7 @@ function addSpotLayer(id, geojson, clustered) {
     const f = e.features[0];
     const p = f.properties;
     const [lon, lat] = f.geometry.coordinates;
-    const popup = new maplibregl.Popup({ offset: 10 })
+    const popup = new maplibregl.Popup({ offset: 10, className: 'bv-popup', maxWidth: '280px' })
       .setLngLat(f.geometry.coordinates)
       .setHTML(popupHtml(p, lat, lon))
       .addTo(map);
@@ -345,6 +353,14 @@ btn.addEventListener('click', searchArea);
 const SUPABASE_URL = 'https://lbjbizpusplzsblienmt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_NzQssCs8Gfyw__MNeet5xA_mJbmzHbC';
 const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// Petit utilitaire : id de l'utilisateur connecté (ou null), pour tracer les contributions
+// (avis, spots ajoutés) sans dupliquer l'appel getSession() partout.
+async function currentUserId() {
+  if (!sb) return null;
+  const { data: { session } } = await sb.auth.getSession();
+  return session && session.user ? session.user.id : null;
+}
 
 let communitySpotsRaw = [];
 
@@ -508,7 +524,8 @@ async function submitAvis() {
       lon: currentAvisSpot.lon,
       text: text || null,
       rating: selectedRating || null,
-      photo_url: photoUrl
+      photo_url: photoUrl,
+      user_id: await currentUserId()
     });
     if (error) throw error;
     avisText.value = '';
@@ -538,7 +555,8 @@ reportSubmitBtn.addEventListener('click', async () => {
       lat: currentAvisSpot.lat,
       lon: currentAvisSpot.lon,
       text,
-      report_type: 'signalement_changement'
+      report_type: 'signalement_changement',
+      user_id: await currentUserId()
     });
     if (error) throw error;
     reportTextInput.value = '';
@@ -761,7 +779,8 @@ addSpotSubmitBtn.addEventListener('click', async () => {
       notes: notes || null,
       legal_status: legalStatus,
       vehicle_constraints: vehicleConstraints,
-      hiking_constraints: hikingConstraints
+      hiking_constraints: hikingConstraints,
+      user_id: await currentUserId()
     });
     if (error) throw error;
     closeAddSpotModal();
@@ -888,12 +907,14 @@ favListEl.addEventListener('click', async (e) => {
   }
 });
 
-// --- Navigation du bas (Carte / Compte) ---
+// --- Navigation du bas (Carte / Mes trips / Compte) ---
 const navMap = document.getElementById('navMap');
+const navTrips = document.getElementById('navTrips');
 const navAccount = document.getElementById('navAccount');
 
 function setActiveNav(which) {
   navMap.classList.toggle('active', which === 'map');
+  navTrips.classList.toggle('active', which === 'trips');
   navAccount.classList.toggle('active', which === 'account');
 }
 
@@ -980,10 +1001,22 @@ function closeAccountModal() {
 
 navMap.addEventListener('click', () => {
   closeAccountModal();
+  closeTripsListModal();
+  closeItineraryModal();
+  setActiveNav('map');
 });
 navAccount.addEventListener('click', () => {
+  closeTripsListModal();
+  closeItineraryModal();
   setActiveNav('account');
   openAccountModal();
+});
+navTrips.addEventListener('click', () => {
+  if (authGateActive) return;
+  closeAccountModal();
+  closeItineraryModal();
+  setActiveNav('trips');
+  openTripsListModal();
 });
 accountCloseBtn.addEventListener('click', closeAccountModal);
 accountModal.addEventListener('click', (e) => {
@@ -1130,6 +1163,32 @@ const profilePseudoInput = document.getElementById('profilePseudo');
 const profileTravelerTypeSelect = document.getElementById('profileTravelerType');
 const profileSaveBtn = document.getElementById('profileSaveBtn');
 const profileSavedEl = document.getElementById('profileSaved');
+const profileAvatarEl = document.getElementById('profileAvatar');
+const profilePseudoDisplayEl = document.getElementById('profilePseudoDisplay');
+const profileTravelerToggle = document.getElementById('profileTravelerToggle');
+const statAvisCountEl = document.getElementById('statAvisCount');
+const statSpotsCountEl = document.getElementById('statSpotsCount');
+const profileBadgeStat = document.getElementById('profileBadgeStat');
+const profileBadgeLabel = document.getElementById('profileBadgeLabel');
+
+function setTravelerToggle(value) {
+  profileTravelerTypeSelect.value = value || '';
+  profileTravelerToggle.querySelectorAll('.profile-toggle-opt').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+}
+profileTravelerToggle.querySelectorAll('.profile-toggle-opt').forEach((btn) => {
+  btn.addEventListener('click', () => setTravelerToggle(btn.dataset.value));
+});
+
+function updateAvatarAndName(pseudo, email) {
+  const label = (pseudo && pseudo.trim()) || (email ? email.split('@')[0] : '');
+  const initials = label
+    ? label.trim().split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join('')
+    : '?';
+  profileAvatarEl.textContent = initials || '?';
+  profilePseudoDisplayEl.textContent = label || 'Sans pseudo';
+}
 
 async function loadProfile() {
   if (!sb) return;
@@ -1139,7 +1198,28 @@ async function loadProfile() {
     const { data, error } = await sb.from('profiles').select('pseudo, traveler_type').eq('user_id', session.user.id).maybeSingle();
     if (error) throw error;
     profilePseudoInput.value = (data && data.pseudo) || '';
-    profileTravelerTypeSelect.value = (data && data.traveler_type) || '';
+    setTravelerToggle((data && data.traveler_type) || '');
+    updateAvatarAndName((data && data.pseudo) || '', session.user.email);
+
+    // Stats de contribution (comptées sur les lignes où on a pu tracer l'auteur ;
+    // les contributions antérieures à l'ajout de user_id ne sont pas comptabilisées).
+    const [avisRes, spotsRes] = await Promise.all([
+      sb.from('comments').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).eq('report_type', 'avis'),
+      sb.from('spots').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id)
+    ]);
+    const avisCount = avisRes.count || 0;
+    const spotsCount = spotsRes.count || 0;
+    statAvisCountEl.textContent = String(avisCount);
+    statSpotsCountEl.textContent = String(spotsCount);
+    if (avisCount + spotsCount >= 5) {
+      profileBadgeLabel.textContent = 'Contributeur régulier';
+      profileBadgeStat.style.display = 'flex';
+    } else if (avisCount + spotsCount >= 1) {
+      profileBadgeLabel.textContent = 'Nouveau contributeur';
+      profileBadgeStat.style.display = 'flex';
+    } else {
+      profileBadgeStat.style.display = 'none';
+    }
   } catch (e) {
     console.error('Erreur chargement profil', e);
   }
@@ -1159,6 +1239,7 @@ profileSaveBtn.addEventListener('click', async () => {
       traveler_type: profileTravelerTypeSelect.value || null
     }, { onConflict: 'user_id' });
     if (error) throw error;
+    updateAvatarAndName(profilePseudoInput.value.trim(), session.user.email);
     profileSavedEl.textContent = 'Profil enregistré.';
     setTimeout(() => { profileSavedEl.textContent = ''; }, 2500);
   } catch (e) {
@@ -1188,6 +1269,357 @@ if (oauthGoogleBtn) {
     }
   });
 }
+
+// =====================================================================================
+// --- Mon itinéraire / Mes trips ---
+// Planification d'itinéraire : étapes posées par l'utilisateur, calcul de distance/temps
+// par segment via un service de routing public (OSRM, serveur démo gratuit — voir note
+// de limitation plus bas), et suggestion de spots qualifiés à proximité de chaque segment.
+// =====================================================================================
+
+// Distance à vol d'oiseau entre deux points (km), formule de Haversine.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// OSRM : serveur démo public (router.project-osrm.org), gratuit et sans clé mais sans garantie
+// de disponibilité/débit en production, et profil "driving" générique (ne tient pas compte des
+// restrictions camping-car : hauteur, poids...). Suffisant pour ce prototype ; à remplacer par
+// un service de routing dédié (ou un OSRM self-hosté) avant un vrai lancement public.
+const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving/';
+
+async function fetchRoute(lat1, lon1, lat2, lon2) {
+  const url = OSRM_URL + lon1 + ',' + lat1 + ';' + lon2 + ',' + lat2 + '?overview=full&geometries=geojson';
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  if (!data.routes || !data.routes.length) throw new Error('Pas de route trouvée');
+  const r = data.routes[0];
+  return {
+    distanceKm: r.distance / 1000,
+    durationMin: r.duration / 60,
+    coords: r.geometry.coordinates // [[lon, lat], ...]
+  };
+}
+
+function formatDuration(min) {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h <= 0) return m + ' min';
+  return h + 'h' + (m > 0 ? String(m).padStart(2, '0') : '');
+}
+
+// Spots suggérés le long d'un segment : on échantillonne la ligne de route, puis on cherche,
+// parmi les spots officiels + communautaires déjà chargés en mémoire, ceux dont la distance
+// minimale à la route reste sous un seuil. Le "détour" affiché est une approximation
+// (aller-retour depuis le point le plus proche de la route), pas un calcul d'itinéraire exact.
+function suggestSpotsAlongRoute(routeCoords, max) {
+  if (!routeCoords || !routeCoords.length) return [];
+  const step = Math.max(1, Math.floor(routeCoords.length / 40));
+  const sampled = [];
+  for (let i = 0; i < routeCoords.length; i += step) sampled.push(routeCoords[i]);
+
+  const candidates = officialSpotsRaw.concat(communitySpotsRaw);
+  const found = [];
+  for (const s of candidates) {
+    const [lat, lon, name, cls] = s;
+    if (!name) continue;
+    let minDist = Infinity;
+    for (const [rlon, rlat] of sampled) {
+      const d = haversineKm(lat, lon, rlat, rlon);
+      if (d < minDist) minDist = d;
+      if (minDist < 0.3) break; // assez proche, inutile de continuer
+    }
+    if (minDist <= 6) found.push({ lat, lon, name, cls, detourKm: minDist * 2 });
+  }
+  found.sort((a, b) => a.detourKm - b.detourKm);
+  return found.slice(0, max || 4);
+}
+
+// --- Mes itinéraires (liste) ---
+const tripsListModal = document.getElementById('tripsListModal');
+const tripsListEl = document.getElementById('tripsList');
+const tripsNewBtn = document.getElementById('tripsNewBtn');
+
+function openTripsListModal() {
+  tripsListModal.classList.add('show');
+  loadTripsList();
+}
+function closeTripsListModal() {
+  tripsListModal.classList.remove('show');
+}
+
+async function loadTripsList() {
+  if (!sb) return;
+  tripsListEl.innerHTML = '<div class="trips-empty">Chargement…</div>';
+  try {
+    const userId = await currentUserId();
+    if (!userId) { tripsListEl.innerHTML = '<div class="trips-empty">Connecte-toi pour voir tes itinéraires.</div>'; return; }
+    const { data: trips, error } = await sb.from('trips').select('id, name, created_at').eq('user_id', userId).order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!trips.length) {
+      tripsListEl.innerHTML = '<div class="trips-empty">Aucun itinéraire pour l\'instant.<br>Touche le bouton + pour créer le premier.</div>';
+      return;
+    }
+    const { data: stops } = await sb.from('trip_stops').select('trip_id');
+    const countByTrip = {};
+    (stops || []).forEach((s) => { countByTrip[s.trip_id] = (countByTrip[s.trip_id] || 0) + 1; });
+
+    tripsListEl.innerHTML = '';
+    trips.forEach((t) => {
+      const card = document.createElement('button');
+      card.className = 'trip-card';
+      const n = countByTrip[t.id] || 0;
+      card.innerHTML =
+        '<div class="trip-card-thumb"></div>' +
+        '<div class="trip-card-body">' +
+          '<span class="trip-card-title">' + escapeHtml(t.name) + '</span>' +
+          '<span class="trip-card-sub">' + n + (n > 1 ? ' étapes' : ' étape') + '</span>' +
+        '</div>' +
+        '<div class="trip-card-chevron">›</div>';
+      card.addEventListener('click', () => {
+        closeTripsListModal();
+        openItineraryModal(t.id);
+      });
+      tripsListEl.appendChild(card);
+    });
+  } catch (e) {
+    tripsListEl.innerHTML = '<div class="trips-empty">Erreur de chargement : ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+tripsNewBtn.addEventListener('click', () => {
+  closeTripsListModal();
+  openItineraryModal(null);
+});
+tripsListModal.addEventListener('click', (e) => {
+  if (e.target === tripsListModal) { closeTripsListModal(); setActiveNav('map'); }
+});
+
+// --- Mon itinéraire (édition d'un trip) ---
+const itineraryModal = document.getElementById('itineraryModal');
+const itineraryNameInput = document.getElementById('itineraryNameInput');
+const itineraryStepsEl = document.getElementById('itinerarySteps');
+const itineraryBackBtn = document.getElementById('itineraryBackBtn');
+const itinerarySaveBtn = document.getElementById('itinerarySaveBtn');
+const itinerarySaveStatus = document.getElementById('itinerarySaveStatus');
+
+let currentTripId = null;
+let tripStops = []; // [{ name, lat, lon }]
+let tripSegmentsCache = {}; // clé "i" -> { distanceKm, durationMin, coords, suggestions }
+
+function openItineraryModal(tripId) {
+  currentTripId = tripId;
+  tripStops = [];
+  tripSegmentsCache = {};
+  itineraryNameInput.value = 'Mon itinéraire';
+  itinerarySaveStatus.textContent = '';
+  itineraryModal.classList.add('show');
+  if (tripId) {
+    loadTripIntoEditor(tripId);
+  } else {
+    renderItinerarySteps();
+  }
+}
+function closeItineraryModal() {
+  itineraryModal.classList.remove('show');
+}
+itineraryBackBtn.addEventListener('click', () => {
+  closeItineraryModal();
+  openTripsListModal();
+});
+itineraryModal.addEventListener('click', (e) => {
+  if (e.target === itineraryModal) { closeItineraryModal(); setActiveNav('map'); }
+});
+
+async function loadTripIntoEditor(tripId) {
+  itineraryStepsEl.innerHTML = '<div class="trips-empty">Chargement…</div>';
+  try {
+    const { data: trip, error: tErr } = await sb.from('trips').select('name').eq('id', tripId).single();
+    if (tErr) throw tErr;
+    itineraryNameInput.value = trip.name;
+    const { data: stops, error: sErr } = await sb.from('trip_stops').select('name, custom_lat, custom_lon, position_order').eq('trip_id', tripId).order('position_order', { ascending: true });
+    if (sErr) throw sErr;
+    tripStops = (stops || []).map((s) => ({ name: s.name, lat: s.custom_lat, lon: s.custom_lon }));
+    await renderItinerarySteps();
+  } catch (e) {
+    itineraryStepsEl.innerHTML = '<div class="trips-empty">Erreur de chargement : ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function ensureSegment(i) {
+  // Segment entre l'étape i et i+1
+  if (tripSegmentsCache[i]) return tripSegmentsCache[i];
+  const a = tripStops[i], b = tripStops[i + 1];
+  try {
+    const route = await fetchRoute(a.lat, a.lon, b.lat, b.lon);
+    const suggestions = suggestSpotsAlongRoute(route.coords, 4);
+    const seg = { distanceKm: route.distanceKm, durationMin: route.durationMin, suggestions, error: null };
+    tripSegmentsCache[i] = seg;
+    return seg;
+  } catch (e) {
+    const seg = { error: true };
+    tripSegmentsCache[i] = seg;
+    return seg;
+  }
+}
+
+async function renderItinerarySteps() {
+  itineraryStepsEl.innerHTML = '';
+
+  if (!tripStops.length) {
+    const empty = document.createElement('div');
+    empty.className = 'trips-empty';
+    empty.textContent = "Ajoute une première étape (ville ou lieu) pour démarrer.";
+    itineraryStepsEl.appendChild(empty);
+  }
+
+  tripStops.forEach((stop, i) => {
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'itin-step';
+    stepDiv.innerHTML =
+      '<div class="itin-step-num-col">' +
+        '<span class="itin-step-num">' + (i + 1) + '</span>' +
+        (i < tripStops.length - 1 ? '<span class="itin-step-connector"></span>' : '') +
+      '</div>' +
+      '<div class="itin-step-body">' +
+        '<div class="itin-step-card">' +
+          '<div class="itin-step-card-main">' +
+            '<span class="itin-step-name">' + escapeHtml(stop.name) + '</span>' +
+            '<span class="itin-step-sub">Étape ' + (i + 1) + '</span>' +
+          '</div>' +
+          '<button class="itin-step-remove" data-i="' + i + '" aria-label="Retirer cette étape">✕</button>' +
+        '</div>' +
+        '<div class="itin-suggestions-holder" data-i="' + i + '"></div>' +
+      '</div>';
+    itineraryStepsEl.appendChild(stepDiv);
+
+    if (i < tripStops.length - 1) {
+      const segDiv = document.createElement('div');
+      segDiv.className = 'itin-segment';
+      segDiv.dataset.i = i;
+      segDiv.textContent = 'Calcul du trajet…';
+      itineraryStepsEl.appendChild(segDiv);
+    }
+  });
+
+  // Bouton + formulaire d'ajout d'étape
+  const addWrap = document.createElement('div');
+  addWrap.innerHTML =
+    '<button id="itinAddStepBtn" class="itin-add-step-btn">+ Ajouter une étape</button>' +
+    '<div id="itinAddStepForm" class="itin-add-step-form" style="display:none">' +
+      '<input type="text" id="itinAddStepInput" placeholder="Ville, lieu…">' +
+      '<button id="itinAddStepValidate">Ajouter</button>' +
+    '</div>';
+  itineraryStepsEl.appendChild(addWrap);
+
+  itineraryStepsEl.querySelectorAll('.itin-step-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      tripStops.splice(Number(btn.dataset.i), 1);
+      tripSegmentsCache = {};
+      renderItinerarySteps();
+    });
+  });
+
+  const addBtn = document.getElementById('itinAddStepBtn');
+  const addForm = document.getElementById('itinAddStepForm');
+  const addInput = document.getElementById('itinAddStepInput');
+  addBtn.addEventListener('click', () => {
+    addBtn.style.display = 'none';
+    addForm.style.display = 'flex';
+    addInput.focus();
+  });
+  const validateAdd = async () => {
+    const q = addInput.value.trim();
+    if (!q) return;
+    try {
+      const result = await geocodeAddress(q);
+      if (!result) { alert('Aucun résultat pour « ' + q + ' ».'); return; }
+      tripStops.push({ name: result.label, lat: result.lat, lon: result.lon });
+      tripSegmentsCache = {};
+      renderItinerarySteps();
+    } catch (e) {
+      alert('Recherche indisponible (problème réseau).');
+    }
+  };
+  document.getElementById('itinAddStepValidate').addEventListener('click', validateAdd);
+  addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') validateAdd(); });
+
+  // Calcule les segments en tâche de fond (ne bloque pas l'affichage des étapes).
+  for (let i = 0; i < tripStops.length - 1; i++) {
+    ensureSegment(i).then((seg) => {
+      const segEl = itineraryStepsEl.querySelector('.itin-segment[data-i="' + i + '"]');
+      if (segEl) {
+        segEl.textContent = seg.error
+          ? 'Trajet indisponible pour ce segment'
+          : Math.round(seg.distanceKm) + ' km · environ ' + formatDuration(seg.durationMin) + ' de route';
+      }
+      const holder = itineraryStepsEl.querySelector('.itin-suggestions-holder[data-i="' + i + '"]');
+      if (holder && !seg.error && seg.suggestions && seg.suggestions.length) {
+        holder.innerHTML =
+          '<div class="itin-suggestions-label"><span>' + seg.suggestions.length + ' spot(s) suggéré(s) sur le trajet</span></div>' +
+          '<div class="itin-suggestions">' +
+            seg.suggestions.map((s) =>
+              '<button type="button" class="itin-suggestion-card" data-lat="' + s.lat + '" data-lon="' + s.lon + '" data-name="' + escapeAttr(s.name) + '">' +
+                '<div class="itin-suggestion-top"><span class="dot" style="background:' + (COLORS[s.cls] || '#9BAA9C') + '"></span>' +
+                '<span class="itin-suggestion-name">' + escapeHtml(s.name) + '</span></div>' +
+                '<span class="itin-suggestion-dist">+' + s.detourKm.toFixed(1) + ' km de détour (approx.)</span>' +
+              '</button>'
+            ).join('') +
+          '</div>';
+        holder.querySelectorAll('.itin-suggestion-card').forEach((card) => {
+          card.addEventListener('click', () => {
+            const idx = Number(holder.dataset.i);
+            tripStops.splice(idx + 1, 0, { name: card.dataset.name, lat: Number(card.dataset.lat), lon: Number(card.dataset.lon) });
+            tripSegmentsCache = {};
+            renderItinerarySteps();
+          });
+        });
+      }
+    });
+  }
+}
+
+itinerarySaveBtn.addEventListener('click', async () => {
+  if (!sb) return;
+  if (!tripStops.length) { alert('Ajoute au moins une étape avant d\'enregistrer.'); return; }
+  const userId = await currentUserId();
+  if (!userId) { alert('Connecte-toi pour enregistrer un itinéraire.'); return; }
+  itinerarySaveBtn.disabled = true;
+  itinerarySaveStatus.textContent = '';
+  try {
+    const name = itineraryNameInput.value.trim() || 'Mon itinéraire';
+    let tripId = currentTripId;
+    if (tripId) {
+      const { error } = await sb.from('trips').update({ name }).eq('id', tripId);
+      if (error) throw error;
+      await sb.from('trip_stops').delete().eq('trip_id', tripId);
+    } else {
+      const { data, error } = await sb.from('trips').insert({ user_id: userId, name }).select('id').single();
+      if (error) throw error;
+      tripId = data.id;
+      currentTripId = tripId;
+    }
+    const rows = tripStops.map((s, i) => ({
+      trip_id: tripId, name: s.name, custom_lat: s.lat, custom_lon: s.lon,
+      position_order: i, day_number: i + 1
+    }));
+    const { error: insErr } = await sb.from('trip_stops').insert(rows);
+    if (insErr) throw insErr;
+    itinerarySaveStatus.textContent = 'Itinéraire enregistré.';
+    setTimeout(() => { itinerarySaveStatus.textContent = ''; }, 2500);
+  } catch (e) {
+    itinerarySaveStatus.style.color = '#ff8a80';
+    itinerarySaveStatus.textContent = 'Erreur : ' + e.message;
+  } finally {
+    itinerarySaveBtn.disabled = false;
+  }
+});
 
 if (sb) {
   sb.auth.onAuthStateChange(() => refreshAccountUI());
