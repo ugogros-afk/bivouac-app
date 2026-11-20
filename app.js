@@ -897,7 +897,7 @@ function setActiveNav(which) {
   navAccount.classList.toggle('active', which === 'account');
 }
 
-// --- Compte utilisateur : email/mot de passe (+ Google/Apple à venir), confirmation par code ---
+// --- Compte utilisateur : email/mot de passe + Google, confirmation par code ---
 const accountModal = document.getElementById('accountModal');
 const accountLoggedOut = document.getElementById('accountLoggedOut');
 const accountConfirm = document.getElementById('accountConfirm');
@@ -1188,9 +1188,6 @@ if (oauthGoogleBtn) {
     }
   });
 }
-
-// Apple : en attente d'un compte développeur Apple payant ($99/an), non configuré pour l'instant.
-// document.getElementById('oauthApple').addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } }));
 
 if (sb) {
   sb.auth.onAuthStateChange(() => refreshAccountUI());
