@@ -130,22 +130,62 @@
     font-size: 14px; margin-bottom: 10px; font-family: inherit; min-height: 50px; resize: vertical;
   }
 
-  /* Compte utilisateur */
-  .account-input {
-    width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px;
-    font-size: 14px; margin-bottom: 8px; font-family: inherit;
+  /* Compte utilisateur : page plein écran (pas un bottom sheet) */
+  #accountModal.auth-page {
+    position: fixed; inset: 0; z-index: 3000; display: none;
+    background: radial-gradient(circle at 50% -10%, #1f4323 0%, #0e1f10 45%, #060b06 100%);
+    color: #fff;
   }
-  #accountTabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .account-tab {
-    flex: 1; border: none; background: #f1f1f1; color: #777; padding: 10px;
-    border-radius: 20px; font-size: 14px; font-weight: 600;
+  #accountModal.auth-page.show { display: block; }
+  .auth-close {
+    position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 16px; z-index: 10;
+    border: none; background: rgba(255,255,255,.08); color: #fff; width: 36px; height: 36px;
+    border-radius: 50%; font-size: 16px; line-height: 1;
   }
-  .account-tab.active { background: #1b5e20; color: #fff; }
+  .auth-scroll {
+    position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: calc(64px + env(safe-area-inset-top)) 24px calc(30px + env(safe-area-inset-bottom));
+  }
+  .auth-content { max-width: 420px; margin: 0 auto; }
+  .auth-logo { font-size: 42px; text-align: center; margin-bottom: 14px; }
+  .auth-title { text-align: center; font-size: 28px; line-height: 1.25; font-weight: 800; margin: 0 0 28px; }
+  .auth-title-accent { color: #66bb6a; }
+  .auth-tabs { display: flex; gap: 4px; margin-bottom: 22px; background: rgba(255,255,255,.07); padding: 4px; border-radius: 26px; }
+  .auth-tabs .account-tab {
+    flex: 1; border: none; background: transparent; color: rgba(255,255,255,.6);
+    padding: 12px; border-radius: 22px; font-size: 14px; font-weight: 700;
+  }
+  .auth-tabs .account-tab.active { background: #1b5e20; color: #fff; }
+  .auth-label {
+    display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: rgba(255,255,255,.5); margin: 14px 0 6px; font-weight: 700;
+  }
+  #accountModal .account-input {
+    width: 100%; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 13px;
+    font-size: 15px; font-family: inherit; background: rgba(255,255,255,.06); color: #fff;
+  }
+  #accountModal .account-input::placeholder { color: rgba(255,255,255,.35); }
+  .auth-forgot { display: block; text-align: right; font-size: 13px; color: #8bc9a0; margin: 8px 0 4px; background: none; border: none; padding: 0; }
+  .auth-submit {
+    width: 100%; background: #1b5e20; color: #fff; border: none; border-radius: 26px;
+    padding: 15px; font-size: 16px; font-weight: 700; margin-top: 16px;
+  }
+  .auth-submit:disabled { opacity: .6; }
+  .auth-divider { text-align: center; color: rgba(255,255,255,.4); font-size: 13px; margin: 24px 0; position: relative; }
+  .auth-divider::before, .auth-divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: rgba(255,255,255,.15); }
+  .auth-divider::before { left: 0; }
+  .auth-divider::after { right: 0; }
+  .auth-oauth-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(255,255,255,.95); color: #222; border: none; border-radius: 26px;
+    padding: 14px; font-size: 15px; font-weight: 600; margin-bottom: 10px;
+  }
+  .auth-oauth-btn:disabled { opacity: .45; }
   .account-divider { text-align: center; color: #999; font-size: 12px; margin: 12px 0; }
-  .account-error { color: #b71c1c; font-size: 13px; margin: 2px 0 8px; min-height: 16px; }
-  .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .oauth-btn:disabled { opacity: .5; }
-  .oauth-note { font-size: 11px; color: #aaa; text-align: center; margin: -4px 0 10px; }
+  .account-error { color: #ff8a80; font-size: 13px; margin: 8px 0; min-height: 16px; }
+  .oauth-note { font-size: 11px; color: rgba(255,255,255,.4); text-align: center; margin: -4px 0 10px; }
+  .auth-sub { text-align: center; color: rgba(255,255,255,.55); font-size: 14px; margin: -18px 0 26px; }
+  #accountModal .sheet-secondary { background: rgba(255,255,255,.1); color: #fff; }
 
   /* Statut légal */
   .legal-badge {
@@ -175,7 +215,7 @@
 
   /* Profil */
   #profileForm input, #profileForm select { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 14px; margin-bottom: 8px; font-family: inherit; }
-  #profileSaved { font-size: 12px; color: #1b5e20; min-height: 16px; }
+  #profileSaved { font-size: 12px; color: #8bc9a0; min-height: 16px; }
 
   /* Favoris */
   .fav-item {
@@ -293,63 +333,74 @@
   </div>
 </div>
 
-<!-- Compte utilisateur -->
-<div id="accountModal" class="sheet-overlay">
-  <div class="sheet">
-    <button id="accountClose" class="sheet-close">✕</button>
-    <h3 class="sheet-title">Mon compte</h3>
+<!-- Compte utilisateur : page plein écran -->
+<div id="accountModal" class="auth-page">
+  <button id="accountClose" class="auth-close">✕</button>
+  <div class="auth-scroll">
+    <div class="auth-content">
+      <div class="auth-logo">⛺</div>
+      <h1 class="auth-title">Trouve ton bivouac,<br><span class="auth-title-accent">en toute confiance.</span></h1>
 
-    <!-- Connexion / Création de compte -->
-    <div id="accountLoggedOut">
-      <div id="accountTabs">
-        <button id="tabLogin" class="account-tab active">Connexion</button>
-        <button id="tabSignup" class="account-tab">Créer un compte</button>
+      <!-- Connexion / Création de compte -->
+      <div id="accountLoggedOut">
+        <div id="accountTabs" class="auth-tabs">
+          <button id="tabLogin" class="account-tab active">Connexion</button>
+          <button id="tabSignup" class="account-tab">Inscription</button>
+        </div>
+
+        <div id="loginPane">
+          <label class="auth-label" for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" class="account-input" placeholder="ton@email.com" autocomplete="email">
+          <label class="auth-label" for="loginPassword">Mot de passe</label>
+          <input type="password" id="loginPassword" class="account-input" placeholder="••••••••" autocomplete="current-password">
+          <button type="button" id="forgotPasswordBtn" class="auth-forgot">Mot de passe oublié ?</button>
+          <div id="loginError" class="account-error"></div>
+          <button id="loginSubmit" class="auth-submit">Se connecter</button>
+        </div>
+
+        <div id="signupPane" style="display:none">
+          <label class="auth-label" for="signupEmail">E-mail</label>
+          <input type="email" id="signupEmail" class="account-input" placeholder="ton@email.com" autocomplete="email">
+          <label class="auth-label" for="signupPassword">Mot de passe</label>
+          <input type="password" id="signupPassword" class="account-input" placeholder="6 caractères min." autocomplete="new-password">
+          <div id="signupError" class="account-error"></div>
+          <button id="signupSubmit" class="auth-submit">Créer mon compte</button>
+        </div>
+
+        <div class="auth-divider">ou</div>
+        <button id="oauthGoogle" class="auth-oauth-btn" disabled title="Bientôt disponible">🔴 Continuer avec Google</button>
+        <button id="oauthApple" class="auth-oauth-btn" disabled title="Bientôt disponible"> Continuer avec Apple</button>
+        <div class="oauth-note">Connexion Google/Apple bientôt disponible</div>
       </div>
 
-      <div id="loginPane">
-        <input type="email" id="loginEmail" class="account-input" placeholder="Adresse e-mail" autocomplete="email">
-        <input type="password" id="loginPassword" class="account-input" placeholder="Mot de passe" autocomplete="current-password">
-        <div id="loginError" class="account-error"></div>
-        <button id="loginSubmit" class="sheet-submit">Se connecter</button>
+      <!-- Code de confirmation envoyé par e-mail -->
+      <div id="accountConfirm" style="display:none">
+        <p class="auth-sub" style="margin-top:0">Un code a été envoyé à <strong id="confirmEmailLabel" style="color:#fff"></strong>. Saisis-le pour activer ton compte.</p>
+        <label class="auth-label" for="confirmCode">Code de confirmation</label>
+        <input type="text" id="confirmCode" class="account-input" placeholder="Code reçu par e-mail" inputmode="numeric" maxlength="12">
+        <div id="confirmError" class="account-error"></div>
+        <button id="confirmSubmit" class="auth-submit">Valider le code</button>
+        <button id="confirmResend" class="sheet-secondary" style="margin-top:10px">Renvoyer le code</button>
       </div>
 
-      <div id="signupPane" style="display:none">
-        <input type="email" id="signupEmail" class="account-input" placeholder="Adresse e-mail" autocomplete="email">
-        <input type="password" id="signupPassword" class="account-input" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
-        <div id="signupError" class="account-error"></div>
-        <button id="signupSubmit" class="sheet-submit">Créer mon compte</button>
+      <!-- Connecté -->
+      <div id="accountLoggedIn" style="display:none">
+        <p class="auth-sub" style="margin-top:0">Connecté en tant que <strong style="color:#fff" id="accountEmailLabel"></strong></p>
+        <div id="profileForm">
+          <label class="auth-label" for="profilePseudo">Pseudo</label>
+          <input type="text" id="profilePseudo" class="account-input" placeholder="Pseudo" maxlength="30">
+          <label class="auth-label" for="profileTravelerType">Type de voyageur</label>
+          <select id="profileTravelerType" class="account-input">
+            <option value="">Non précisé</option>
+            <option value="camping_car">Camping-car / van</option>
+            <option value="bivouac_tente">Bivouac en tente</option>
+            <option value="les_deux">Les deux</option>
+          </select>
+          <button id="profileSaveBtn" class="auth-submit">Enregistrer mon profil</button>
+          <div id="profileSaved" style="text-align:center;margin-top:8px"></div>
+        </div>
+        <button id="logoutBtn" class="sheet-secondary" style="width:100%;margin-top:16px">Se déconnecter</button>
       </div>
-
-      <div class="account-divider">— ou —</div>
-      <button id="oauthGoogle" class="sheet-secondary oauth-btn" disabled title="Bientôt disponible">🔴 Continuer avec Google</button>
-      <button id="oauthApple" class="sheet-secondary oauth-btn" disabled title="Bientôt disponible"> Continuer avec Apple</button>
-      <div class="oauth-note">Connexion Google/Apple bientôt disponible</div>
-    </div>
-
-    <!-- Code de confirmation envoyé par e-mail -->
-    <div id="accountConfirm" style="display:none">
-      <p style="font-size:14px;color:#555;margin-top:0">Un code a été envoyé à <strong id="confirmEmailLabel"></strong>. Saisissez-le pour activer votre compte.</p>
-      <input type="text" id="confirmCode" class="account-input" placeholder="Code reçu par e-mail" inputmode="numeric" maxlength="12">
-      <div id="confirmError" class="account-error"></div>
-      <button id="confirmSubmit" class="sheet-submit">Valider le code</button>
-      <button id="confirmResend" class="sheet-secondary">Renvoyer le code</button>
-    </div>
-
-    <!-- Connecté -->
-    <div id="accountLoggedIn" style="display:none">
-      <p style="font-size:14px;color:#555;margin-top:0">Connecté en tant que <strong id="accountEmailLabel"></strong></p>
-      <div id="profileForm">
-        <input type="text" id="profilePseudo" placeholder="Pseudo" maxlength="30">
-        <select id="profileTravelerType">
-          <option value="">Type de voyageur (non précisé)</option>
-          <option value="camping_car">Camping-car / van</option>
-          <option value="bivouac_tente">Bivouac en tente</option>
-          <option value="les_deux">Les deux</option>
-        </select>
-        <button id="profileSaveBtn" class="sheet-secondary">Enregistrer mon profil</button>
-        <div id="profileSaved"></div>
-      </div>
-      <button id="logoutBtn" class="sheet-secondary">Se déconnecter</button>
     </div>
   </div>
 </div>

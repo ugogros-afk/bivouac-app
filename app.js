@@ -994,6 +994,7 @@ accountModal.addEventListener('click', (e) => {
 refreshAccountUI();
 
 loginSubmitBtn.addEventListener('click', async () => {
+  loginErrorEl.style.color = '';
   loginErrorEl.textContent = '';
   const email = loginEmailInput.value.trim();
   const password = loginPasswordInput.value;
@@ -1012,6 +1013,26 @@ loginSubmitBtn.addEventListener('click', async () => {
   } finally {
     loginSubmitBtn.disabled = false;
     loginSubmitBtn.textContent = 'Se connecter';
+  }
+});
+
+const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+forgotPasswordBtn.addEventListener('click', async () => {
+  loginErrorEl.style.color = '';
+  const email = loginEmailInput.value.trim();
+  if (!email) { loginErrorEl.style.color = '#ff8a80'; loginErrorEl.textContent = "Saisissez d'abord votre e-mail ci-dessus."; return; }
+  if (!sb) { loginErrorEl.style.color = '#ff8a80'; loginErrorEl.textContent = 'Connexion à la base de données indisponible.'; return; }
+  forgotPasswordBtn.disabled = true;
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    if (error) throw error;
+    loginErrorEl.style.color = '#8bc9a0';
+    loginErrorEl.textContent = 'E-mail de réinitialisation envoyé (si ce compte existe).';
+  } catch (e) {
+    loginErrorEl.style.color = '#ff8a80';
+    loginErrorEl.textContent = e.message;
+  } finally {
+    forgotPasswordBtn.disabled = false;
   }
 });
 
@@ -1036,7 +1057,7 @@ signupSubmitBtn.addEventListener('click', async () => {
       confirmEmailLabel.textContent = email;
       confirmCodeInput.value = '';
       confirmErrorEl.textContent = '';
-      confirmErrorEl.style.color = '#b71c1c';
+      confirmErrorEl.style.color = '#ff8a80';
       showAccountView('confirm');
     }
   } catch (e) {
@@ -1048,7 +1069,7 @@ signupSubmitBtn.addEventListener('click', async () => {
 });
 
 confirmSubmitBtn.addEventListener('click', async () => {
-  confirmErrorEl.style.color = '#b71c1c';
+  confirmErrorEl.style.color = '#ff8a80';
   confirmErrorEl.textContent = '';
   const token = confirmCodeInput.value.trim();
   if (!pendingConfirmEmail || !token) { confirmErrorEl.textContent = 'Saisissez le code reçu par e-mail.'; return; }
@@ -1074,10 +1095,10 @@ confirmResendBtn.addEventListener('click', async () => {
   try {
     const { error } = await sb.auth.resend({ type: 'signup', email: pendingConfirmEmail });
     if (error) throw error;
-    confirmErrorEl.style.color = '#1b5e20';
+    confirmErrorEl.style.color = '#8bc9a0';
     confirmErrorEl.textContent = 'Nouveau code envoyé.';
   } catch (e) {
-    confirmErrorEl.style.color = '#b71c1c';
+    confirmErrorEl.style.color = '#ff8a80';
     confirmErrorEl.textContent = e.message;
   } finally {
     confirmResendBtn.disabled = false;
@@ -1122,6 +1143,7 @@ profileSaveBtn.addEventListener('click', async () => {
   if (!session) return;
   profileSaveBtn.disabled = true;
   profileSavedEl.textContent = '';
+  profileSavedEl.style.color = '';
   try {
     const { error } = await sb.from('profiles').upsert({
       user_id: session.user.id,
@@ -1132,7 +1154,7 @@ profileSaveBtn.addEventListener('click', async () => {
     profileSavedEl.textContent = 'Profil enregistré.';
     setTimeout(() => { profileSavedEl.textContent = ''; }, 2500);
   } catch (e) {
-    profileSavedEl.style.color = '#b71c1c';
+    profileSavedEl.style.color = '#ff8a80';
     profileSavedEl.textContent = "Erreur : " + e.message;
   } finally {
     profileSaveBtn.disabled = false;
