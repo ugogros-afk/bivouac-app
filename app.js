@@ -1169,9 +1169,27 @@ profileSaveBtn.addEventListener('click', async () => {
   }
 });
 
-// Google/Apple : les boutons sont prêts côté code mais désactivés tant que les fournisseurs
-// OAuth ne sont pas configurés dans le tableau de bord Supabase (Authentication > Providers).
-// document.getElementById('oauthGoogle').addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } }));
+// Google : provider OAuth configuré dans Supabase (Authentication > Providers > Google).
+const oauthGoogleBtn = document.getElementById('oauthGoogle');
+if (oauthGoogleBtn) {
+  oauthGoogleBtn.addEventListener('click', async () => {
+    if (!sb) return;
+    oauthGoogleBtn.disabled = true;
+    try {
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) throw error;
+      // La redirection vers Google a lieu ; le bouton reste désactivé le temps du redirect.
+    } catch (e) {
+      oauthGoogleBtn.disabled = false;
+      alert("Connexion Google impossible : " + e.message);
+    }
+  });
+}
+
+// Apple : en attente d'un compte développeur Apple payant ($99/an), non configuré pour l'instant.
 // document.getElementById('oauthApple').addEventListener('click', () => sb.auth.signInWithOAuth({ provider: 'apple', options: { redirectTo: window.location.origin } }));
 
 if (sb) {
