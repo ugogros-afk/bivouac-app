@@ -16,7 +16,11 @@ module.exports = [
     best_season: 'Mai à septembre',
     practical_tips: "Se garer avec un camping-car dans ou aux abords du centre-ville d'Annecy est très compliqué : mieux vaut utiliser une aire dédiée en périphérie (comme celle de Colmyr, gratuite toute l'année) et rejoindre le centre à pied, vélo ou bus.",
     how_to_get_there: "Accès par l'A41 (sortie Annecy) ou l'A43 depuis Lyon/Chambéry. Gare TGV directe depuis Paris et Lyon.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Castle_of_Annecy_02.jpg', credit: 'Krzysztof Golik (Wikimedia Commons)', license: 'CC BY-SA 4.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Annecy-Semnoz_(2013).JPG', credit: 'Florian Pépellin (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'mont-saint-michel',
@@ -31,7 +35,10 @@ module.exports = [
     best_season: 'Toute l\'année, idéalement hors juillet-août pour éviter l\'affluence',
     practical_tips: "Le stationnement sur le grand parking est payant mais le séjour nocturne y est toléré ; impossible en revanche d'y rester garé pendant la visite comme aire d'hébergement. Plusieurs aires et campings dédiés aux camping-cars existent à proximité (Beauvoir), avec navette gratuite vers le Mont.",
     how_to_get_there: "A84 puis D976 depuis Rennes ou Caen. Gare SNCF la plus proche : Pontorson, puis navette Midibus.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Mont_Saint_Michel.jpg', credit: 'Eric Pouhier (Wikimedia Commons)', license: 'CC BY-SA 2.5' }
+    ]
   },
   {
     slug: 'gouffre-de-padirac',
@@ -46,7 +53,10 @@ module.exports = [
     best_season: 'Avril à novembre (fermé l\'hiver)',
     practical_tips: "Parking gratuit dédié aux camping-cars (P2), mais stationnement nocturne interdit sur place (22h-8h) ; une aire de camping-car existe à Trémoulières, à 2 km. Arriver tôt en haute saison, la visite se fait par petits groupes toutes les 30 minutes.",
     how_to_get_there: "Par la D673 puis D90, à 30 min de Rocamadour et Brive-la-Gaillarde.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Gouffre_de_Padirac.jpg', credit: 'Wikimedia Commons', license: 'licence libre' }
+    ]
   },
   {
     slug: 'gorges-du-verdon',
@@ -61,7 +71,10 @@ module.exports = [
     best_season: 'Mai à septembre',
     practical_tips: "Routes touristiques étroites et sinueuses : roulez lentement et partagez la chaussée avec cyclistes et motards. Castellane et Moustiers-Sainte-Marie disposent d'aires de services pour camping-cars ; prévoir les grands axes pour les véhicules les plus longs.",
     how_to_get_there: "Accès par Castellane (D952) ou Aups/Moustiers (D71-D952) depuis l'A51 (Marseille-Aix).",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Verdon_Gorge_Wikivoyage_Banner.jpg', credit: 'Benh Lieu Song (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'saint-malo',
@@ -76,7 +89,10 @@ module.exports = [
     best_season: 'Avril à octobre',
     practical_tips: "Plusieurs aires de camping-car existent à l'entrée de la ville (parking Paul Féval, Les Ilots) avec navette ou bus vers l'intramuros ; éviter de chercher à se garer directement dans la cité historique.",
     how_to_get_there: "Par la RN137 depuis Rennes (1h) ou la D137 depuis Dinan.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/99_3550_Hafen_von_Saint-Malo,_Frankreich.jpg', credit: 'W. Bulach (Wikimedia Commons)', license: 'CC BY-SA 4.0' }
+    ]
   },
   {
     slug: 'dune-du-pilat',
@@ -91,7 +107,11 @@ module.exports = [
     best_season: 'Printemps et été pour la météo, hors juillet-août pour éviter la foule',
     practical_tips: "Stationnement camping-car payant (tarif spécifique plus élevé que les voitures) et interdit la nuit ; stationnement sauvage strictement prohibé aux abords (amende). Privilégier une arrivée matinale en haute saison, le parking sature vite.",
     how_to_get_there: "Par la D218 depuis Arcachon ou La Teste-de-Buch ; navette Dune Express en juillet-août.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sommet_de_la_Dune_du_Pilat.jpg', credit: 'Jörg Braukmann (Wikimedia Commons)', license: 'CC BY-SA 4.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/00_3029_Dune_du_Pilat_-_Frankreich.jpg', credit: 'W. Bulach (Wikimedia Commons)', license: 'CC BY-SA 4.0' }
+    ]
   },
   {
     slug: 'colmar',
@@ -106,7 +126,11 @@ module.exports = [
     best_season: 'Avril à octobre, ou décembre pour les marchés de Noël',
     practical_tips: "Aire de camping-car dédiée au port de plaisance de Colmar (environ 20 minutes à pied du centre historique), avec parc clôturé ; réserver tôt en période de marchés de Noël, l'affluence et les places limitées se font sentir.",
     how_to_get_there: "Sortie A35 \"Colmar\", à 30 min de Strasbourg et Mulhouse.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Petite_Venise_depuis_le_pont_de_la_rue_des_%C3%89coles_(Colmar)_(8).jpg', credit: 'Gzen92 (Wikimedia Commons)', license: 'CC BY-SA 4.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Little_Venice_in_Colmar_01.jpg', credit: 'Krzysztof Golik (Wikimedia Commons)', license: 'CC BY-SA 4.0' }
+    ]
   },
   {
     slug: 'cirque-de-gavarnie',
@@ -121,7 +145,10 @@ module.exports = [
     best_season: 'Juin à octobre (itinéraire déconseillé en hiver et au printemps, risque d\'avalanches)',
     practical_tips: "Se garer au parking du village de Gavarnie (payant en saison) ; un bus dessert aussi le village depuis Lourdes en été. Partir tôt le matin pour profiter de la lumière, éviter la chaleur et devancer l'affluence de juillet-août.",
     how_to_get_there: "Par la D921 depuis Lourdes via Luz-Saint-Sauveur et Gèdre (environ 1h15).",
-    popularity: 'moyenne', hidden_gem: true
+    popularity: 'moyenne', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Cirque_de_Gavarnie,_Haute-Pyr%C3%A9n%C3%A9es,_France.jpg', credit: 'Benh Lieu Song (Wikimedia Commons)', license: 'CC BY-SA 2.0' }
+    ]
   },
   {
     slug: 'calanques-de-cassis',
@@ -136,7 +163,10 @@ module.exports = [
     best_season: 'Mai à septembre, en dehors des pics de risque incendie',
     practical_tips: "Accès motorisé très réglementé et souvent fermé en été (du 1er juin au 30 septembre, arrêté préfectoral anti-incendie) : mieux vaut se garer à Cassis ou La Ciotat et marcher, certaines calanques (Sugiton) nécessitant même une réservation en ligne. Vérifier le niveau de risque incendie du jour avant de partir.",
     how_to_get_there: "Sortie \"Cassis\" sur l'A50 depuis Marseille ou Toulon ; gare SNCF de Cassis.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Calanque_de_Sormiou-Cassis.jpg', credit: 'Tobi 87 (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'sarlat-la-caneda',
@@ -151,7 +181,11 @@ module.exports = [
     best_season: 'Avril à octobre ; marché du samedi matin incontournable',
     practical_tips: "Aire de camping-car communale au centre, sur l'ancien camping municipal, à distance de marche du centre historique. La ville se visite entièrement à pied, prévoir de laisser le véhicule à l'aire dès l'arrivée.",
     how_to_get_there: "Par la D704 ou D703 ; gare SNCF de Sarlat-la-Canéda, aéroports de Brive et Bergerac à proximité.",
-    popularity: 'moyenne', hidden_gem: false
+    popularity: 'moyenne', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Clocher_saint-Sacerdos_Sarlat.jpg', credit: 'Jebulon (Wikimedia Commons)', license: 'CC0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Sarlat_2008_24.jpg', credit: 'Manfred Heyde (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'pointe-du-raz',
@@ -166,7 +200,10 @@ module.exports = [
     best_season: 'Toute l\'année, idéal au printemps et en été pour la lumière du soir',
     practical_tips: "Stationnement payant toute l'année en haute saison (environ 8€/jour, tarif identique voitures et camping-cars), compter 20 minutes de marche depuis le parking jusqu'à la pointe. Une navette relie en été la Pointe du Raz à la Pointe du Van.",
     how_to_get_there: "Par la D784 puis D8 depuis Audierne ou Douarnenez.",
-    popularity: 'moyenne', hidden_gem: false
+    popularity: 'moyenne', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/PointDuRaz_DSC00375_PtrQs.jpg', credit: 'PtrQs (Wikimedia Commons)', license: 'CC BY-SA 4.0' }
+    ]
   },
   {
     slug: 'gorges-de-lardeche',
@@ -181,7 +218,10 @@ module.exports = [
     best_season: 'Mai à octobre',
     practical_tips: "La route touristique se conduit aussi en camping-car mais certains passages restent délicats pour les grands véhicules : rouler prudemment. Camping sauvage interdit dans la réserve naturelle, seul le bivouac minimaliste y est toléré ; plusieurs aires de service existent à Vallon-Pont-d'Arc.",
     how_to_get_there: "Par la D579 ou D104 depuis Montélimar ou Aubenas.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/GorgesArdeche.jpg', credit: 'Modano (Wikimedia Commons)', license: 'CC BY-SA 2.5' }
+    ]
   },
   {
     slug: 'collioure',
@@ -196,7 +236,11 @@ module.exports = [
     best_season: 'Mai à octobre',
     practical_tips: "Stationnement en centre-ville interdit aux camping-cars (barrières) : direction l'aire municipale du Cap Dourats, à environ 2 km du centre, reliée par navette gratuite en été. Prévoir l'affluence estivale, le village est très fréquenté en juillet-août.",
     how_to_get_there: "Sortie 14 \"Collioure\" depuis l'A9 au sud de Perpignan.",
-    popularity: 'moyenne', hidden_gem: true
+    popularity: 'moyenne', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Collioure_windmill_fort_saint-elme.jpg', credit: 'Palauenc05 (Wikimedia Commons)', license: 'CC BY-SA 4.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/%C3%89glise_Notre-Dame-des-Anges_de_Collioure_6.jpg', credit: 'Fildefer (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'puy-de-dome',
@@ -211,7 +255,10 @@ module.exports = [
     best_season: 'Avril à octobre (le train fonctionne toute l\'année, conditions hivernales variables)',
     practical_tips: "Grand parking au pied du site (gare de la Font de l'Arbre) adapté aux camping-cars ; réserver son billet de train à l'avance en haute saison, l'affluence est importante l'été.",
     how_to_get_there: "Par la D941A ou D68 depuis Clermont-Ferrand (environ 15 km).",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Volcanoes_in_Auvergne_France_2010.jpg', credit: 'zarmel (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
   },
   {
     slug: 'etretat',
@@ -226,7 +273,11 @@ module.exports = [
     best_season: 'Avril à octobre',
     practical_tips: "Aire de camping-car payante juste à l'entrée de la ville, à 1,5 km des falaises (environ 15 minutes à pied) ; prévoir d'arriver tôt le matin en été, les parkings du centre saturent vite et les emplacements sur l'aire se remplissent rapidement.",
     how_to_get_there: "Par la D940 depuis Le Havre (30 min) ou Fécamp.",
-    popularity: 'forte', hidden_gem: false
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/L%27Aiguille_et_la_Porte_d%27Aval-Etretat-Normandie.jpg', credit: 'Tobi 87 (Wikimedia Commons)', license: 'CC BY-SA 3.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Porte_d%27Aval_(Vue_depuis_la_Manneporte).jpg', credit: 'Jörg Braukmann (Wikimedia Commons)', license: 'CC BY-SA' }
+    ]
   },
   {
     slug: 'roussillon-sentier-des-ocres',
@@ -241,7 +292,10 @@ module.exports = [
     best_season: 'Toute l\'année, lumière la plus spectaculaire en fin de journée',
     practical_tips: "Le sentier compte environ 350 marches et n'est pas adapté aux poussettes ni aux personnes à mobilité réduite ; plusieurs parkings (dont un pour cars) existent au village et sur le site, entrée payante réglée sur place.",
     how_to_get_there: "Par la D105 depuis Apt (environ 10 km), au cœur du Luberon.",
-    popularity: 'moyenne', hidden_gem: true
+    popularity: 'moyenne', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Ochre_quarry,_Roussillon,_France_(465185258).jpg', credit: 'Fulvio Spada (Wikimedia Commons)', license: 'CC BY-SA 2.0' }
+    ]
   },
   {
     slug: 'baie-de-somme',
@@ -256,7 +310,11 @@ module.exports = [
     best_season: 'Toute l\'année, l\'automne pour la pêche à pied et les migrations d\'oiseaux',
     practical_tips: "Tout se cale sur les horaires de marée (coefficients parmi les plus élevés d'Europe) : vérifier les horaires avant de planifier la journée, en particulier pour l'observation des phoques à la Pointe du Hourdel, visibles surtout à marée descendante. Garder ses distances, l'approche des phoques est interdite.",
     how_to_get_there: "Par la D940 ou D3 depuis Abbeville ; aire de camping-car à Saint-Valery-sur-Somme et au Crotoy.",
-    popularity: 'moyenne', hidden_gem: true
+    popularity: 'moyenne', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Baie_de_Somme_-_near_Noyelles-sur-Mer-3334-36.jpg', credit: 'Raimond Spekking (Wikimedia Commons)', license: 'CC BY-SA 4.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Saint-Valery-sur-Somme.jpg', credit: 'Troye Owens (Wikimedia Commons)', license: 'CC BY-SA 2.0' }
+    ]
   },
   {
     slug: 'gorges-du-tarn',
@@ -271,6 +329,155 @@ module.exports = [
     best_season: 'Juin à septembre (crues possibles le reste de l\'année, \"épisodes cévenols\")',
     practical_tips: "Routes étroites et sinueuses au cœur des gorges, circulation parfois difficile pour les plus grands véhicules en pleine saison ; de nombreux campings bord de rivière entre Sainte-Énimie et Florac accueillent les camping-cars.",
     how_to_get_there: "Sortie \"Gorges du Tarn\" sur l'A75 à Aguessac, puis D907.",
-    popularity: 'moyenne', hidden_gem: true
+    popularity: 'moyenne', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Point_Sublime-Gorges_du_Tarn-Frankreich.jpg', credit: 'Tobi 87 (Wikimedia Commons)', license: 'CC BY-SA 3.0' },
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Castelbouc_Gorges_du_Tarn.jpg', credit: 'Myrabella (Wikimedia Commons)', license: 'CC BY-SA' }
+    ]
+  },
+  // --- 8 lieux supplémentaires ajoutés le 21/11/2026, pour enrichir la couverture régionale ---
+  {
+    slug: 'chaos-de-huelgoat',
+    name: 'Chaos de Huelgoat',
+    region: 'Bretagne',
+    category: 'site naturel',
+    lat: 48.3650, lon: -3.7436,
+    description_courte: "Forêt bretonne envahie de rochers de granite géants, de légendes arthuriennes et d'une rivière qui disparaît sous terre.",
+    description_longue: "Au cœur des Monts d'Arrée, la rivière de l'Argent cascade entre des centaines de blocs de granite entassés par l'érosion, un chaos qui a nourri tout un folklore local (grotte du Diable, Roche Tremblante). Le camp d'Artus, ancien refuge fortifié gaulois, complète ce site aussi mystérieux qu'accessible à pied, bien différent des grands sites naturels du littoral breton.",
+    ambiance_tags: ['forêt', 'randonnée', 'légendes', 'insolite'],
+    best_duration: 'Demi-journée',
+    best_season: 'Printemps à automne',
+    practical_tips: "Se garer sur le grand parking du centre-bourg, accessible aux camping-cars, puis explorer à pied ; sentiers assez techniques (racines, rochers humides), prévoir de bonnes chaussures.",
+    how_to_get_there: "À environ 30 minutes de route de Morlaix ou de Carhaix, en plein centre du Finistère.",
+    popularity: 'faible', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Rochers_en_for%C3%AAt_de_Huelgoat2.jpg', credit: 'Wikimedia Commons', license: 'licence libre' }
+    ]
+  },
+  {
+    slug: 'riquewihr',
+    name: 'Riquewihr',
+    region: 'Grand Est',
+    category: 'ville',
+    lat: 48.1672, lon: 7.2978,
+    description_courte: "Village à remparts figé au XVIe siècle, capitale historique du vin d'Alsace sur la Route des Vins.",
+    description_longue: "Ancienne possession des ducs de Wurtemberg, Riquewihr a traversé les siècles presque intact, protégé par ses fortifications médiévales et épargné par les bombardements de la Seconde Guerre mondiale. Classé parmi Les Plus Beaux Villages de France, il déroule ses maisons à colombages penchées, sa tour du Dolder et ses caves à riesling, à quelques kilomètres de Colmar.",
+    ambiance_tags: ['village médiéval', 'vin', 'architecture', 'romantique'],
+    best_duration: 'Demi-journée à 1 jour',
+    best_season: 'Printemps à automne (marchés de Noël en décembre, très fréquentés)',
+    practical_tips: "Les camping-cars ne peuvent pas entrer dans le village : se garer sur les parkings dédiés en périphérie et marcher quelques minutes. Éviter le cœur de l'été et les week-ends de marché de Noël, très saturés.",
+    how_to_get_there: "À environ 11 km au nord de Colmar par la route des Vins d'Alsace.",
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Riquewihr,_relief_2.jpg', credit: 'Fiore Silvestro Barbato (Wikimedia Commons)', license: 'CC BY-SA 2.0' }
+    ]
+  },
+  {
+    slug: 'chateau-de-montsegur',
+    name: 'Château de Montségur',
+    region: 'Occitanie',
+    category: 'monument',
+    lat: 42.8722, lon: 1.8342,
+    description_courte: "Le « pog » cathare le plus célèbre de France, perché à plus de 1200 m au-dessus de la vallée ariégeoise.",
+    description_longue: "Assiégés en 1243-1244 par les troupes royales, les cathares de Montségur finirent par se rendre : plus de 200 d'entre eux furent brûlés au pied du piton rocheux pour avoir refusé d'abjurer leur foi, faisant de ce lieu l'un des sites de mémoire les plus chargés d'histoire du Sud-Ouest. La montée, courte mais raide, offre un panorama circulaire sur les Pyrénées ariégeoises.",
+    ambiance_tags: ['histoire', 'randonnée', 'panorama', 'cathares'],
+    best_duration: 'Demi-journée',
+    best_season: 'Printemps à automne',
+    practical_tips: "Parking au village, puis 30-40 minutes de montée assez raide et pierreuse ; prévoir de bonnes chaussures et éviter en cas de pluie (sentier glissant).",
+    how_to_get_there: "À environ 1h de route de Foix, dans les Pyrénées ariégeoises.",
+    popularity: 'moyenne', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Montsegur.p%C3%B2g1.jpg', credit: 'Wikimedia Commons', license: 'licence libre' }
+    ]
+  },
+  {
+    slug: 'lac-de-serre-poncon',
+    name: 'Lac de Serre-Ponçon',
+    region: 'Provence-Alpes-Côte d\'Azur',
+    category: 'site naturel',
+    lat: 44.5273, lon: 6.3811,
+    description_courte: "La « mer des Alpes », immense lac artificiel aux eaux turquoise encadré de sommets alpins.",
+    description_longue: "Créé par un barrage sur la Durance pour l'eau et l'électricité, ce lac est aujourd'hui l'un des plus grands plans d'eau artificiels d'Europe. Ses eaux d'un bleu intense, bordées de plages et de criques, en font un spot prisé pour la voile, le paddle et la baignade en été, avec en toile de fond les sommets du massif des Écrins. Le village de Savines-le-Lac, englouti puis reconstruit sur la rive, raconte l'histoire singulière du site.",
+    ambiance_tags: ['lac', 'montagne', 'nautisme', 'panorama'],
+    best_duration: '1 à 2 jours',
+    best_season: 'Juin à septembre',
+    practical_tips: "De nombreuses aires et campings pour camping-cars existent tout autour du lac (Savines-le-Lac, Embrun, Chorges) ; réserver en haute saison, les emplacements se remplissent vite en juillet-août.",
+    how_to_get_there: "Entre Gap et Embrun, sur l'axe des Hautes-Alpes.",
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vue_du_lac_de_Serre-Pon%C3%A7on_et_du_pont_de_Savines_(depuis_Savines-le-Lac).jpg', credit: 'Wikimedia Commons', license: 'licence libre' }
+    ]
+  },
+  {
+    slug: 'bonifacio',
+    name: 'Bonifacio',
+    region: 'Corse',
+    category: 'ville',
+    lat: 41.3870, lon: 9.1570,
+    description_courte: "Citadelle blanche suspendue à pic sur des falaises calcaires, à la pointe sud de la Corse.",
+    description_longue: "Bâtie sur un éperon calcaire dominant la Méditerranée, la ville haute de Bonifacio surplombe un port naturel encaissé où se mêlent bateaux de pêche et voiliers. Les ruelles fortifiées, l'escalier du Roi d'Aragon taillé dans la roche et les falaises blanches battues par le vent en font l'une des étapes les plus spectaculaires du littoral corse.",
+    ambiance_tags: ['falaises', 'mer', 'citadelle', 'panorama'],
+    best_duration: '1 à 2 jours',
+    best_season: 'Mai à octobre (éviter le cœur de l\'été, très fréquenté)',
+    practical_tips: "Le stationnement en centre-ville est très limité pour les camping-cars : privilégier les parkings dédiés à l'entrée de la ville et terminer à pied. Les ruelles de la vieille ville sont étroites et escarpées.",
+    how_to_get_there: "À l'extrémité sud de la Corse, à environ 1h30 de route d'Ajaccio ou de Porto-Vecchio.",
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Bonifacio_falaises_escalier_roi_Aragon.jpg', credit: 'Myrabella (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
+  },
+  {
+    slug: 'honfleur',
+    name: 'Honfleur',
+    region: 'Normandie',
+    category: 'ville',
+    lat: 49.4197, lon: 0.2336,
+    description_courte: "Port historique normand aux maisons hautes et étroites, qui a inspiré les peintres impressionnistes.",
+    description_longue: "Blotti autour du Vieux Bassin, Honfleur a conservé son caractère de port de pêche et de commerce, avec ses façades à colombages ou en ardoise reflétées dans l'eau. La lumière particulière de l'estuaire de la Seine a attiré de nombreux peintres au XIXe siècle, de Monet à Boudin, natif de la ville. L'église Sainte-Catherine, entièrement construite en bois par des charpentiers de marine, complète ce décor photogénique.",
+    ambiance_tags: ['port', 'charme', 'art', 'gastronomie'],
+    best_duration: '1 journée',
+    best_season: 'Toute l\'année, hors week-ends très chargés en été',
+    practical_tips: "Aire de camping-car disponible en périphérie du centre historique ; le Vieux Bassin et ses ruelles se visitent à pied, très animés et bondés les week-ends d'été.",
+    how_to_get_there: "À l'embouchure de la Seine, à environ 15 minutes du pont de Normandie.",
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Honfleur_F_PM_030511.jpg', credit: 'Paul M.R. Maeyaert (Wikimedia Commons)', license: 'CC BY-SA 4.0' }
+    ]
+  },
+  {
+    slug: 'chateau-de-chambord',
+    name: 'Château de Chambord',
+    region: 'Centre-Val de Loire',
+    category: 'monument',
+    lat: 47.6163, lon: 1.5170,
+    description_courte: "Le plus grand des châteaux de la Loire, chef-d'œuvre de la Renaissance voulu par François Ier.",
+    description_longue: "Construit de 1519 à 1547, Chambord doit son plan à Domenico da Cortona, même si certains attribuent à Léonard de Vinci la conception de son escalier à double révolution, qui permet à deux personnes de monter et descendre sans jamais se croiser. Le château est entouré d'un parc boisé de plus de 5000 hectares, peuplé de cerfs et ceint d'un mur de 31 km, offrant un cadre naturel immense autour de ce décor architectural unique au monde.",
+    ambiance_tags: ['château', 'Renaissance', 'architecture', 'parc'],
+    best_duration: 'Demi-journée',
+    best_season: 'Printemps à automne',
+    practical_tips: "Grand parking visiteurs adapté aux camping-cars à l'entrée du domaine ; arriver tôt le matin pour éviter l'afflux de cars touristiques en milieu de journée.",
+    how_to_get_there: "À environ 15 km à l'est de Blois, dans le Val de Loire.",
+    popularity: 'forte', hidden_gem: false,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Chambord_Castle_Northwest_facade.jpg', credit: 'Benh Lieu Song (Wikimedia Commons)', license: 'CC BY-SA 3.0' }
+    ]
+  },
+  {
+    slug: 'cascades-du-herisson',
+    name: 'Cascades du Hérisson',
+    region: 'Bourgogne-Franche-Comté',
+    category: 'site naturel',
+    lat: 46.6550, lon: 5.8333,
+    description_courte: "Série de 31 cascades successives dévalant une vallée encaissée du Haut-Jura, loin de la foule.",
+    description_longue: "Le torrent du Hérisson, qui prend sa source dans les lacs d'Ilay et de Bonlieu, a longtemps fait tourner moulins et forges. Aujourd'hui, un sentier forestier permet de longer ses chutes successives, dont l'Éventail et le Grand Saut, dans une ambiance de forêt profonde bien moins fréquentée que les grands canyons alpins.",
+    ambiance_tags: ['cascades', 'randonnée', 'forêt', 'nature préservée'],
+    best_duration: 'Demi-journée',
+    best_season: 'Mars à juin et septembre à novembre (débit plus faible en été)',
+    practical_tips: "Plusieurs parkings jalonnent le parcours (Maison des Cascades, Ilay, Bonlieu) ; le sentier complet est assez exigeant (dénivelé, terrain glissant par endroits), prévoir de bonnes chaussures.",
+    how_to_get_there: "Dans le Haut-Jura, entre Doucier et Ilay, à environ 30 minutes de Lons-le-Saunier.",
+    popularity: 'faible', hidden_gem: true,
+    photos: [
+      { url: 'https://commons.wikimedia.org/wiki/Special:FilePath/Cascade_du_h%C3%A9risson_Jura_France.JPG', credit: 'Wikimedia Commons', license: 'licence libre' }
+    ]
   }
 ];

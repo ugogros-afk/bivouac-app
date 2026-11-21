@@ -1806,8 +1806,12 @@ function poiCardHtml(p) {
   let badges = '';
   if (p.popularity === 'forte') badges += '<span class="poi-badge">⭐ Incontournable</span>';
   if (p.hidden_gem) badges += '<span class="poi-badge poi-badge-gem">💎 Pépite</span>';
+  const photoUrl = Array.isArray(p.photo_urls) && p.photo_urls.length ? p.photo_urls[0] : null;
+  const imgHtml = photoUrl
+    ? '<img src="' + escapeAttr(photoUrl) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'; this.parentElement.classList.add(\'poi-card-img-fallback\');">'
+    : '';
   return '<button type="button" class="poi-card" data-id="' + p.id + '">' +
-    '<div class="poi-card-img" style="background:' + poiGradient(p.category) + '">' + poiIcon(p.category) + '</div>' +
+    '<div class="poi-card-img' + (photoUrl ? '' : ' poi-card-img-fallback') + '" style="background:' + poiGradient(p.category) + '">' + imgHtml + '<span class="poi-card-img-icon">' + poiIcon(p.category) + '</span></div>' +
     '<div class="poi-card-body">' +
       '<span class="poi-card-name">' + escapeHtml(p.name) + '</span>' +
       '<span class="poi-card-region">' + escapeHtml(p.region) + '</span>' +
@@ -1926,11 +1930,18 @@ function renderPoiDetail(p) {
   const tags = Array.isArray(p.ambiance_tags) ? p.ambiance_tags : [];
   poiDetailFavBtn.textContent = isPoiFavorite(p.id) ? '★' : '☆';
 
-  let html = '<div class="poi-hero" style="background:' + poiGradient(p.category) + '">' +
-      '<div><div class="poi-hero-title">' + escapeHtml(p.name) + '</div>' +
+  const heroPhoto = Array.isArray(p.photo_urls) && p.photo_urls.length ? p.photo_urls[0] : null;
+  const heroCredit = Array.isArray(p.photo_credits) && p.photo_credits.length ? p.photo_credits[0] : null;
+  const heroImgHtml = heroPhoto
+    ? '<img src="' + escapeAttr(heroPhoto) + '" alt="" onerror="this.style.display=\'none\'; this.parentElement.classList.add(\'poi-hero-fallback\');">'
+    : '';
+  let html = '<div class="poi-hero' + (heroPhoto ? '' : ' poi-hero-fallback') + '" style="background:' + poiGradient(p.category) + '">' +
+      heroImgHtml +
+      '<div class="poi-hero-overlay"><div class="poi-hero-title">' + escapeHtml(p.name) + '</div>' +
       '<div class="poi-hero-region">' + escapeHtml(p.region) + ' · ' + escapeHtml(p.category) + '</div></div>' +
     '</div>' +
     '<div class="poi-detail-body">' +
+      (heroPhoto && heroCredit ? '<p class="poi-photo-credit">📷 ' + escapeHtml(heroCredit) + '</p>' : '') +
       '<p class="poi-detail-desc">' + escapeHtml(p.description_longue || p.description_courte || '') + '</p>' +
       (tags.length ? '<div class="poi-tags-row">' + tags.map((t) => '<span class="poi-tag">' + escapeHtml(t) + '</span>').join('') + '</div>' : '') +
       '<button type="button" id="poiAddToTripBtn" class="sheet-submit" style="width:100%;margin-bottom:18px">+ Ajouter à la planification</button>' +
