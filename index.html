@@ -394,6 +394,61 @@
     border-bottom: 1px solid var(--bv-border); padding: 10px 0; font-size: 14px; cursor: pointer; color: var(--bv-text);
   }
   .fav-remove { border: none; background: none; color: var(--bv-bad); font-size: 16px; padding: 4px 8px; }
+
+  /* Explorer France (#13/#18) */
+  .explorer-search input {
+    width: 100%; border: 1px solid var(--bv-border); border-radius: 999px; padding: 12px 16px;
+    font-size: 14px; background: var(--bv-card); color: var(--bv-text); font-family: inherit; margin-bottom: 10px;
+  }
+  .explorer-region-row { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 4px; padding-bottom: 2px; }
+  .explorer-region-row::-webkit-scrollbar { display: none; }
+  .explorer-section-title {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 15px; margin: 18px 0 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .poi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+  .poi-card {
+    border-radius: 14px; background: var(--bv-card); border: 1px solid var(--bv-border); overflow: hidden;
+    text-align: left; cursor: pointer; font-family: inherit; color: var(--bv-text); display: flex; flex-direction: column; padding: 0;
+  }
+  .poi-card-img { height: 84px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .poi-card-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .poi-card-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .poi-card-region { font-size: 11px; color: var(--bv-muted); }
+  .poi-card-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+  .poi-badge { font-size: 9.5px; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--bv-muted); }
+  .poi-badge-gem { color: #FBBF24; background: rgba(251,191,36,.14); }
+  .explorer-empty { text-align: center; color: var(--bv-muted); font-size: 13px; padding: 24px 10px; }
+
+  /* Fiche lieu (POI) */
+  .poi-hero { height: 180px; display: flex; align-items: flex-end; padding: 14px 16px; }
+  .poi-hero-title { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 20px; text-shadow: 0 2px 10px rgba(0,0,0,.5); color: #fff; }
+  .poi-hero-region { font-size: 12px; color: rgba(255,255,255,.9); text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .poi-detail-body { padding: 14px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .poi-detail-desc { font-size: 14px; color: var(--bv-muted); line-height: 1.55; margin: 0 0 14px; }
+  .poi-tags-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .poi-tag { font-size: 11px; padding: 4px 10px; border-radius: 999px; background: var(--bv-card); border: 1px solid var(--bv-border); color: var(--bv-muted); }
+  .poi-acc-item { border-top: 1px solid var(--bv-border); padding: 12px 0; }
+  .poi-acc-q { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; font-weight: 600; cursor: pointer; gap: 8px; }
+  .poi-acc-a { font-size: 13px; color: var(--bv-muted); margin-top: 0; max-height: 0; overflow: hidden; line-height: 1.55; }
+  .poi-acc-item.open .poi-acc-a { max-height: 600px; margin-top: 8px; }
+  .poi-acc-chevron { transition: transform .15s; flex-shrink: 0; }
+  .poi-acc-item.open .poi-acc-chevron { transform: rotate(180deg); }
+  .poi-nearby-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; }
+
+  /* Recherche unifiée (ville/adresse + lieux éditoriaux) dans l'ajout d'étape d'itinéraire */
+  .itin-search-results {
+    margin-top: 4px; border: 1px solid var(--bv-border); border-radius: 10px;
+    background: var(--bv-surface-raised); overflow: hidden;
+  }
+  .itin-search-result {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 13px; width: 100%;
+    background: none; border: none; color: var(--bv-text); text-align: left; font-family: inherit;
+    border-bottom: 1px solid var(--bv-border);
+  }
+  .itin-search-result:last-child { border-bottom: none; }
+  .itin-search-result-icon { font-size: 15px; flex-shrink: 0; }
+  .itin-search-result-sub { color: var(--bv-muted); font-size: 11px; }
 </style>
 </head>
 <body>
@@ -630,9 +685,32 @@
   </div>
 </div>
 
+<!-- Explorer la France (#13/#18) -->
+<div id="explorerModal" class="app-page">
+  <div class="app-page-header">
+    <button id="explorerBackBtn" class="app-page-back" aria-label="Retour">←</button>
+    <span class="app-page-title">Explorer la France</span>
+  </div>
+  <div style="padding:0 16px">
+    <div class="explorer-search"><input type="text" id="explorerSearchInput" placeholder="Rechercher un lieu, une région…" autocomplete="off"></div>
+  </div>
+  <div id="explorerScroll" class="app-page-scroll"></div>
+</div>
+
+<!-- Fiche lieu (POI) (#14/#19) -->
+<div id="poiDetailModal" class="app-page">
+  <div class="app-page-header">
+    <button id="poiDetailBackBtn" class="app-page-back" aria-label="Retour">←</button>
+    <span class="app-page-title">Fiche lieu</span>
+    <button id="poiDetailFavBtn" class="app-page-add-btn" aria-label="Favori">☆</button>
+  </div>
+  <div id="poiDetailScroll" class="app-page-scroll" style="padding:0"></div>
+</div>
+
 <!-- Navigation du bas -->
 <nav id="bottomNav">
   <button class="nav-item active" id="navMap"><span class="nav-icon">🗺️</span>Carte</button>
+  <button class="nav-item" id="navExplorer"><span class="nav-icon">🏞️</span>Explorer</button>
   <button class="nav-item" id="navTrips"><span class="nav-icon">🧭</span>Mes trips</button>
   <button class="nav-item" id="navAccount"><span class="nav-icon">👤</span>Compte</button>
 </nav>

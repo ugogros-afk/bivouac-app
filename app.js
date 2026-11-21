@@ -409,6 +409,7 @@ document.querySelectorAll('.filter-chip').forEach((chip) => {
 map.on('load', () => {
   loadOfficialSpots();
   loadCommunitySpots();
+  loadPois();
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -865,19 +866,8 @@ async function onFavClick(btnEl, id, lat, lon, name) {
 const favModal = document.getElementById('favModal');
 const favListEl = document.getElementById('favList');
 
-function renderFavList() {
-  const list = favoritesCache;
-  if (!list.length) {
-    favListEl.innerHTML = '<p style="color:#888;font-size:13px">Aucun favori pour l\'instant.</p>';
-    return;
-  }
-  favListEl.innerHTML = list.map((f, i) =>
-    '<div class="fav-item" data-i="' + i + '">' +
-    '<span class="fav-name" data-i="' + i + '" style="flex:1">' + escapeHtml(f.name || '(sans nom)') + '</span>' +
-    '<button class="fav-remove" data-i="' + i + '">✕</button>' +
-    '</div>'
-  ).join('');
-}
+// renderFavList() est définie plus bas (section Explorer France), car elle fusionne
+// désormais les favoris de spots ET les favoris de lieux éditoriaux (#16/#21).
 
 function openFavModal() {
   renderFavList();
@@ -893,27 +883,18 @@ favModal.addEventListener('click', (e) => {
   if (e.target === favModal) closeFavModal();
 });
 
-favListEl.addEventListener('click', async (e) => {
-  const i = e.target.getAttribute('data-i');
-  if (i === null) return;
-  const fav = favoritesCache[Number(i)];
-  if (!fav) return;
-  if (e.target.classList.contains('fav-remove')) {
-    await toggleFavorite(fav.id, fav.lat, fav.lon, fav.name);
-    renderFavList();
-  } else {
-    map.flyTo({ center: [fav.lon, fav.lat], zoom: 14 });
-    closeFavModal();
-  }
-});
+// Le listener de clic sur favListEl (ouvrir/supprimer un favori) est attaché plus bas,
+// une fois renderFavList() définie, pour couvrir spots + lieux éditoriaux.
 
-// --- Navigation du bas (Carte / Mes trips / Compte) ---
+// --- Navigation du bas (Carte / Explorer / Mes trips / Compte) ---
 const navMap = document.getElementById('navMap');
+const navExplorer = document.getElementById('navExplorer');
 const navTrips = document.getElementById('navTrips');
 const navAccount = document.getElementById('navAccount');
 
 function setActiveNav(which) {
   navMap.classList.toggle('active', which === 'map');
+  navExplorer.classList.toggle('active', which === 'explorer');
   navTrips.classList.toggle('active', which === 'trips');
   navAccount.classList.toggle('active', which === 'account');
 }
@@ -981,6 +962,7 @@ async function refreshAccountUI() {
     showAccountView('loggedIn');
     setAuthGate(false);
     await loadFavoritesFromDb();
+    await loadPoiFavoritesFromDb();
     await loadProfile();
   } else {
     showAccountView('loggedOut');
@@ -1003,11 +985,15 @@ navMap.addEventListener('click', () => {
   closeAccountModal();
   closeTripsListModal();
   closeItineraryModal();
+  closeExplorerModal();
+  closePoiDetail();
   setActiveNav('map');
 });
 navAccount.addEventListener('click', () => {
   closeTripsListModal();
   closeItineraryModal();
+  closeExplorerModal();
+  closePoiDetail();
   setActiveNav('account');
   openAccountModal();
 });
@@ -1015,8 +1001,19 @@ navTrips.addEventListener('click', () => {
   if (authGateActive) return;
   closeAccountModal();
   closeItineraryModal();
+  closeExplorerModal();
+  closePoiDetail();
   setActiveNav('trips');
   openTripsListModal();
+});
+navExplorer.addEventListener('click', () => {
+  if (authGateActive) return;
+  closeAccountModal();
+  closeTripsListModal();
+  closeItineraryModal();
+  closePoiDetail();
+  setActiveNav('explorer');
+  openExplorerModal();
 });
 accountCloseBtn.addEventListener('click', closeAccountModal);
 accountModal.addEventListener('click', (e) => {
@@ -1199,6 +1196,7 @@ async function loadProfile() {
     if (error) throw error;
     profilePseudoInput.value = (data && data.pseudo) || '';
     setTravelerToggle((data && data.traveler_type) || '');
+    currentTravelerType = (data && data.traveler_type) || null;
     updateAvatarAndName((data && data.pseudo) || '', session.user.email);
 
     // Stats de contribution (comptées sur les lignes où on a pu tracer l'auteur ;
@@ -1421,9 +1419,10 @@ function openItineraryModal(tripId) {
   itinerarySaveStatus.textContent = '';
   itineraryModal.classList.add('show');
   if (tripId) {
-    loadTripIntoEditor(tripId);
+    loadTripIntoEditor(tripId).then(maybeAppendPendingPoi);
   } else {
     renderItinerarySteps();
+    maybeAppendPendingPoi();
   }
 }
 function closeItineraryModal() {
@@ -1443,9 +1442,9 @@ async function loadTripIntoEditor(tripId) {
     const { data: trip, error: tErr } = await sb.from('trips').select('name').eq('id', tripId).single();
     if (tErr) throw tErr;
     itineraryNameInput.value = trip.name;
-    const { data: stops, error: sErr } = await sb.from('trip_stops').select('name, custom_lat, custom_lon, position_order').eq('trip_id', tripId).order('position_order', { ascending: true });
+    const { data: stops, error: sErr } = await sb.from('trip_stops').select('name, custom_lat, custom_lon, position_order, poi_id').eq('trip_id', tripId).order('position_order', { ascending: true });
     if (sErr) throw sErr;
-    tripStops = (stops || []).map((s) => ({ name: s.name, lat: s.custom_lat, lon: s.custom_lon }));
+    tripStops = (stops || []).map((s) => ({ name: s.name, lat: s.custom_lat, lon: s.custom_lon, poi_id: s.poi_id || null }));
     await renderItinerarySteps();
   } catch (e) {
     itineraryStepsEl.innerHTML = '<div class="trips-empty">Erreur de chargement : ' + escapeHtml(e.message) + '</div>';
@@ -1490,7 +1489,7 @@ async function renderItinerarySteps() {
       '<div class="itin-step-body">' +
         '<div class="itin-step-card">' +
           '<div class="itin-step-card-main">' +
-            '<span class="itin-step-name">' + escapeHtml(stop.name) + '</span>' +
+            '<span class="itin-step-name">' + (stop.poi_id ? '🏞️ ' : '') + escapeHtml(stop.name) + '</span>' +
             '<span class="itin-step-sub">Étape ' + (i + 1) + '</span>' +
           '</div>' +
           '<button class="itin-step-remove" data-i="' + i + '" aria-label="Retirer cette étape">✕</button>' +
@@ -1513,9 +1512,10 @@ async function renderItinerarySteps() {
   addWrap.innerHTML =
     '<button id="itinAddStepBtn" class="itin-add-step-btn">+ Ajouter une étape</button>' +
     '<div id="itinAddStepForm" class="itin-add-step-form" style="display:none">' +
-      '<input type="text" id="itinAddStepInput" placeholder="Ville, lieu…">' +
+      '<input type="text" id="itinAddStepInput" placeholder="Ville, lieu, site à visiter…" autocomplete="off">' +
       '<button id="itinAddStepValidate">Ajouter</button>' +
-    '</div>';
+    '</div>' +
+    '<div id="itinAddStepResults" class="itin-search-results" style="display:none"></div>';
   itineraryStepsEl.appendChild(addWrap);
 
   itineraryStepsEl.querySelectorAll('.itin-step-remove').forEach((btn) => {
@@ -1549,6 +1549,53 @@ async function renderItinerarySteps() {
   };
   document.getElementById('itinAddStepValidate').addEventListener('click', validateAdd);
   addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') validateAdd(); });
+
+  // Recherche unifiée (#15/#20) : lieux éditoriaux (points_interet) + option "rechercher comme adresse".
+  const addResultsEl = document.getElementById('itinAddStepResults');
+  function renderAddStepResults(q) {
+    if (!q) { addResultsEl.style.display = 'none'; addResultsEl.innerHTML = ''; return; }
+    const qLower = q.toLowerCase();
+    const matches = poisCache.filter((p) => p.name.toLowerCase().includes(qLower)).slice(0, 5);
+    let html = matches.map((p) =>
+      '<button type="button" class="itin-search-result" data-poi="' + p.id + '">' +
+        '<span class="itin-search-result-icon">' + (POI_CATEGORY_ICON[p.category] || '📍') + '</span>' +
+        '<span style="flex:1;min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(p.name) + '</span>' +
+        '<span class="itin-search-result-sub">' + escapeHtml(p.region) + '</span></span>' +
+      '</button>'
+    ).join('');
+    html += '<button type="button" class="itin-search-result" data-geocode="1">' +
+      '<span class="itin-search-result-icon">🔍</span><span>Rechercher « ' + escapeHtml(q) + ' » (ville/adresse)</span></button>';
+    addResultsEl.innerHTML = html;
+    addResultsEl.style.display = 'block';
+
+    addResultsEl.querySelectorAll('.itin-search-result').forEach((rbtn) => {
+      rbtn.addEventListener('click', async () => {
+        addResultsEl.style.display = 'none';
+        addResultsEl.innerHTML = '';
+        if (rbtn.dataset.poi) {
+          const p = poisCache.find((x) => x.id === rbtn.dataset.poi);
+          if (p) {
+            tripStops.push({ name: p.name, lat: p.lat, lon: p.lon, poi_id: p.id });
+            tripSegmentsCache = {};
+            renderItinerarySteps();
+          }
+        } else {
+          const q2 = addInput.value.trim();
+          if (!q2) return;
+          try {
+            const result = await geocodeAddress(q2);
+            if (!result) { alert('Aucun résultat pour « ' + q2 + ' ».'); return; }
+            tripStops.push({ name: result.label, lat: result.lat, lon: result.lon, poi_id: null });
+            tripSegmentsCache = {};
+            renderItinerarySteps();
+          } catch (e) {
+            alert('Recherche indisponible (problème réseau).');
+          }
+        }
+      });
+    });
+  }
+  addInput.addEventListener('input', () => renderAddStepResults(addInput.value.trim()));
 
   // Calcule les segments en tâche de fond (ne bloque pas l'affichage des étapes).
   for (let i = 0; i < tripStops.length - 1; i++) {
@@ -1607,7 +1654,7 @@ itinerarySaveBtn.addEventListener('click', async () => {
     }
     const rows = tripStops.map((s, i) => ({
       trip_id: tripId, name: s.name, custom_lat: s.lat, custom_lon: s.lon,
-      position_order: i, day_number: i + 1
+      position_order: i, day_number: i + 1, poi_id: s.poi_id || null
     }));
     const { error: insErr } = await sb.from('trip_stops').insert(rows);
     if (insErr) throw insErr;
@@ -1620,6 +1667,359 @@ itinerarySaveBtn.addEventListener('click', async () => {
     itinerarySaveBtn.disabled = false;
   }
 });
+
+// =====================================================================================
+// --- Explorer France : lieux éditoriaux (points_interet) (epic #11-#17) ---
+// Contenu curé (villes + sites naturels/monuments), distinct des spots communautaires
+// (aires/campings/bivouacs). Chargé une fois en mémoire, comme officialSpotsRaw/communitySpotsRaw.
+// =====================================================================================
+
+let poisCache = []; // lignes de public.points_interet
+let currentTravelerType = null; // profiles.traveler_type, mis à jour par loadProfile()
+
+const POI_CATEGORY_ICON = { 'ville': '🏙️', 'site naturel': '🏞️', 'monument': '🏛️', 'activité': '🎒' };
+const POI_CATEGORY_GRADIENT = {
+  'ville': 'linear-gradient(135deg, rgba(124,58,237,.55), rgba(45,212,191,.35))',
+  'site naturel': 'linear-gradient(135deg, rgba(74,222,128,.5), rgba(56,189,248,.35))',
+  'monument': 'linear-gradient(135deg, rgba(251,191,36,.5), rgba(251,146,60,.35))',
+  'activité': 'linear-gradient(135deg, rgba(192,132,252,.5), rgba(124,58,237,.35))'
+};
+function poiIcon(cat) { return POI_CATEGORY_ICON[cat] || '📍'; }
+function poiGradient(cat) { return POI_CATEGORY_GRADIENT[cat] || POI_CATEGORY_GRADIENT['site naturel']; }
+
+async function loadPois() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('points_interet').select('*');
+    if (error) throw error;
+    poisCache = data || [];
+  } catch (e) {
+    console.error('Erreur chargement points_interet', e);
+    poisCache = [];
+  }
+}
+
+// --- Favoris de lieux éditoriaux (#16) ---
+// Table `favorites` étendue (item_type/poi_id) ; miroir en mémoire séparé des favoris de spots,
+// pour ne pas toucher à la logique existante de favoritesCache/isFavorite/toggleFavorite.
+let poiFavoritesCache = []; // [{ id: poi_id, name }]
+
+async function loadPoiFavoritesFromDb() {
+  if (!sb) { poiFavoritesCache = []; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { poiFavoritesCache = []; return; }
+  try {
+    const { data, error } = await sb.from('favorites').select('poi_id, name').eq('user_id', session.user.id).eq('item_type', 'poi');
+    if (error) throw error;
+    poiFavoritesCache = (data || []).map((f) => ({ id: f.poi_id, name: f.name }));
+  } catch (e) {
+    console.error('Erreur chargement favoris de lieux', e);
+    poiFavoritesCache = [];
+  }
+}
+
+function isPoiFavorite(id) {
+  return poiFavoritesCache.some((f) => f.id === id);
+}
+
+async function togglePoiFavorite(id, name) {
+  if (!sb) return isPoiFavorite(id);
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { alert('Connecte-toi pour ajouter des favoris.'); return isPoiFavorite(id); }
+  const already = isPoiFavorite(id);
+  if (already) {
+    const { error } = await sb.from('favorites').delete().eq('user_id', session.user.id).eq('poi_id', id).eq('item_type', 'poi');
+    if (error) { console.error(error); return true; }
+    poiFavoritesCache = poiFavoritesCache.filter((f) => f.id !== id);
+    return false;
+  }
+  const { error } = await sb.from('favorites').insert({ user_id: session.user.id, poi_id: id, item_type: 'poi', name });
+  if (error) { console.error(error); return false; }
+  poiFavoritesCache.push({ id, name });
+  return true;
+}
+
+// Fusionne spots + lieux éditoriaux dans l'écran "Mes favoris" existant.
+function renderFavList() {
+  const items = favoritesCache.map((f) => ({ type: 'spot', data: f }))
+    .concat(poiFavoritesCache.map((f) => ({ type: 'poi', data: f })));
+  if (!items.length) {
+    favListEl.innerHTML = '<p style="color:#888;font-size:13px">Aucun favori pour l\'instant.</p>';
+    favListEl.__items = [];
+    return;
+  }
+  favListEl.innerHTML = items.map((it, i) =>
+    '<div class="fav-item" data-i="' + i + '">' +
+    '<span class="fav-name" data-i="' + i + '" style="flex:1">' +
+      (it.type === 'poi' ? '🏞️ ' : '') + escapeHtml(it.data.name || '(sans nom)') +
+    '</span>' +
+    '<button class="fav-remove" data-i="' + i + '">✕</button>' +
+    '</div>'
+  ).join('');
+  favListEl.__items = items;
+}
+
+favListEl.addEventListener('click', async (e) => {
+  const i = e.target.getAttribute('data-i');
+  if (i === null) return;
+  const items = favListEl.__items || [];
+  const it = items[Number(i)];
+  if (!it) return;
+  if (e.target.classList.contains('fav-remove')) {
+    if (it.type === 'poi') await togglePoiFavorite(it.data.id, it.data.name);
+    else await toggleFavorite(it.data.id, it.data.lat, it.data.lon, it.data.name);
+    renderFavList();
+  } else if (it.type === 'poi') {
+    closeFavModal();
+    openPoiDetail(it.data.id);
+  } else {
+    map.flyTo({ center: [it.data.lon, it.data.lat], zoom: 14 });
+    closeFavModal();
+  }
+});
+
+// --- Écran Explorer (#13/#18) ---
+const explorerModal = document.getElementById('explorerModal');
+const explorerScroll = document.getElementById('explorerScroll');
+const explorerSearchInput = document.getElementById('explorerSearchInput');
+const explorerBackBtn = document.getElementById('explorerBackBtn');
+let explorerRegionFilter = null;
+let explorerForYou = false;
+
+function openExplorerModal() {
+  explorerModal.classList.add('show');
+  renderExplorer();
+}
+function closeExplorerModal() {
+  explorerModal.classList.remove('show');
+}
+explorerBackBtn.addEventListener('click', () => { closeExplorerModal(); setActiveNav('map'); });
+explorerModal.addEventListener('click', (e) => { if (e.target === explorerModal) { closeExplorerModal(); setActiveNav('map'); } });
+explorerSearchInput.addEventListener('input', () => renderExplorer());
+
+function poiGridHtml(list) {
+  if (!list.length) return '<div class="explorer-empty">Aucun lieu dans cette catégorie.</div>';
+  return '<div class="poi-grid">' + list.map(poiCardHtml).join('') + '</div>';
+}
+
+function poiCardHtml(p) {
+  let badges = '';
+  if (p.popularity === 'forte') badges += '<span class="poi-badge">⭐ Incontournable</span>';
+  if (p.hidden_gem) badges += '<span class="poi-badge poi-badge-gem">💎 Pépite</span>';
+  return '<button type="button" class="poi-card" data-id="' + p.id + '">' +
+    '<div class="poi-card-img" style="background:' + poiGradient(p.category) + '">' + poiIcon(p.category) + '</div>' +
+    '<div class="poi-card-body">' +
+      '<span class="poi-card-name">' + escapeHtml(p.name) + '</span>' +
+      '<span class="poi-card-region">' + escapeHtml(p.region) + '</span>' +
+      (badges ? '<div class="poi-card-badges">' + badges + '</div>' : '') +
+    '</div>' +
+  '</button>';
+}
+
+async function renderExplorer() {
+  if (!poisCache.length) {
+    explorerScroll.innerHTML = '<div class="trips-empty">Chargement…</div>';
+    await loadPois();
+  }
+  const q = explorerSearchInput.value.trim();
+  const qLower = q.toLowerCase();
+  let list = poisCache.filter((p) => !q || (p.name + ' ' + p.region).toLowerCase().includes(qLower));
+  if (explorerRegionFilter) list = list.filter((p) => p.region === explorerRegionFilter);
+
+  // "Pour vous" (#17/#22) : filtrage basique selon le type de voyageur du profil, sans algo complexe.
+  if (explorerForYou) {
+    if (currentTravelerType === 'bivouac_tente') {
+      list = list.filter((p) => p.category === 'site naturel' || p.hidden_gem);
+    } else if (currentTravelerType === 'camping_car') {
+      list = list.filter((p) => p.category === 'ville' || p.category === 'monument' || p.popularity === 'forte');
+    }
+  }
+
+  const regions = Array.from(new Set(poisCache.map((p) => p.region))).sort();
+
+  let html = '<div class="explorer-region-row">';
+  html += '<button class="filter-chip' + (explorerForYou ? ' active' : '') + '" data-foryou="1">✨ Pour vous</button>';
+  html += '<button class="filter-chip' + (!explorerRegionFilter ? ' active' : '') + '" data-region="">Toutes régions</button>';
+  regions.forEach((r) => {
+    html += '<button class="filter-chip' + (explorerRegionFilter === r ? ' active' : '') + '" data-region="' + escapeAttr(r) + '">' + escapeHtml(r) + '</button>';
+  });
+  html += '</div>';
+
+  if (!q && !explorerRegionFilter && !explorerForYou) {
+    const forte = list.filter((p) => p.popularity === 'forte');
+    const gems = list.filter((p) => p.hidden_gem);
+    if (forte.length) html += '<div class="explorer-section-title">⭐ À ne pas manquer</div>' + poiGridHtml(forte);
+    if (gems.length) html += '<div class="explorer-section-title">💎 Pépites secrètes</div>' + poiGridHtml(gems);
+    html += '<div class="explorer-section-title">🗺️ Tous les lieux</div>' + poiGridHtml(list);
+  } else {
+    html += '<div class="explorer-section-title">Résultats (' + list.length + ')</div>' + poiGridHtml(list);
+  }
+
+  explorerScroll.innerHTML = html;
+
+  explorerScroll.querySelectorAll('.filter-chip[data-foryou]').forEach((chip) => {
+    chip.addEventListener('click', () => { explorerForYou = !explorerForYou; renderExplorer(); });
+  });
+  explorerScroll.querySelectorAll('.filter-chip[data-region]').forEach((chip) => {
+    chip.addEventListener('click', () => { explorerRegionFilter = chip.dataset.region || null; renderExplorer(); });
+  });
+  explorerScroll.querySelectorAll('.poi-card').forEach((card) => {
+    card.addEventListener('click', () => openPoiDetail(card.dataset.id));
+  });
+}
+
+// --- Fiche lieu (POI) (#14/#19) ---
+const poiDetailModal = document.getElementById('poiDetailModal');
+const poiDetailScroll = document.getElementById('poiDetailScroll');
+const poiDetailBackBtn = document.getElementById('poiDetailBackBtn');
+const poiDetailFavBtn = document.getElementById('poiDetailFavBtn');
+let currentPoi = null;
+let pendingPoiToAdd = null; // { name, lat, lon, poi_id } en attente d'être ajouté à un itinéraire
+
+async function openPoiDetail(poiId) {
+  let p = poisCache.find((x) => x.id === poiId);
+  if (!p && !poisCache.length) { await loadPois(); p = poisCache.find((x) => x.id === poiId); }
+  if (!p) return;
+  currentPoi = p;
+  poiDetailModal.classList.add('show');
+  renderPoiDetail(p);
+  loadPoiReviews(p.id);
+}
+function closePoiDetail() {
+  poiDetailModal.classList.remove('show');
+  currentPoi = null;
+}
+poiDetailBackBtn.addEventListener('click', closePoiDetail);
+poiDetailModal.addEventListener('click', (e) => { if (e.target === poiDetailModal) closePoiDetail(); });
+
+poiDetailFavBtn.addEventListener('click', async () => {
+  if (!currentPoi) return;
+  poiDetailFavBtn.disabled = true;
+  const now = await togglePoiFavorite(currentPoi.id, currentPoi.name);
+  poiDetailFavBtn.textContent = now ? '★' : '☆';
+  poiDetailFavBtn.disabled = false;
+});
+
+function accordionItem(icon, q, aHtml) {
+  return '<div class="poi-acc-item">' +
+    '<div class="poi-acc-q"><span>' + icon + ' ' + escapeHtml(q) + '</span><span class="poi-acc-chevron">▾</span></div>' +
+    '<div class="poi-acc-a">' + aHtml + '</div>' +
+  '</div>';
+}
+
+// "Où séjourner ?" : spots (aires/campings/bivouacs) déjà en mémoire, à proximité du POI (≤15 km).
+function nearbySpotsHtml(p) {
+  const candidates = officialSpotsRaw.concat(communitySpotsRaw)
+    .filter((s) => s[2])
+    .map((s) => ({ name: s[2], cls: s[3], dist: haversineKm(p.lat, p.lon, s[0], s[1]) }))
+    .filter((s) => s.dist <= 15)
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 5);
+  if (!candidates.length) return '<p style="margin:0;color:var(--bv-muted)">Aucun spot connu à proximité pour l\'instant.</p>';
+  return candidates.map((s) =>
+    '<div class="poi-nearby-item"><span class="dot" style="background:' + (COLORS[s.cls] || '#9196A1') + '"></span>' +
+    '<span style="flex:1">' + escapeHtml(s.name) + '</span><span style="color:var(--bv-muted)">' + s.dist.toFixed(1) + ' km</span></div>'
+  ).join('');
+}
+
+function renderPoiDetail(p) {
+  const tags = Array.isArray(p.ambiance_tags) ? p.ambiance_tags : [];
+  poiDetailFavBtn.textContent = isPoiFavorite(p.id) ? '★' : '☆';
+
+  let html = '<div class="poi-hero" style="background:' + poiGradient(p.category) + '">' +
+      '<div><div class="poi-hero-title">' + escapeHtml(p.name) + '</div>' +
+      '<div class="poi-hero-region">' + escapeHtml(p.region) + ' · ' + escapeHtml(p.category) + '</div></div>' +
+    '</div>' +
+    '<div class="poi-detail-body">' +
+      '<p class="poi-detail-desc">' + escapeHtml(p.description_longue || p.description_courte || '') + '</p>' +
+      (tags.length ? '<div class="poi-tags-row">' + tags.map((t) => '<span class="poi-tag">' + escapeHtml(t) + '</span>').join('') + '</div>' : '') +
+      '<button type="button" id="poiAddToTripBtn" class="sheet-submit" style="width:100%;margin-bottom:18px">+ Ajouter à la planification</button>' +
+
+      accordionItem('🌤️', 'Quelle est l\'ambiance ?', '<p style="margin:0">' + (tags.length ? escapeHtml(tags.join(', ')) : 'Non précisé.') + '</p>') +
+      accordionItem('🏕️', 'Où séjourner à proximité ?', nearbySpotsHtml(p)) +
+      accordionItem('💡', 'Un conseil pratique ?', '<p style="margin:0">' + escapeHtml(p.practical_tips || 'Pas de conseil spécifique pour le moment.') + '</p>') +
+      accordionItem('📅', 'Meilleure période ?', '<p style="margin:0">' + escapeHtml(p.best_season || 'Toute l\'année') + (p.best_duration ? ' · Durée conseillée : ' + escapeHtml(p.best_duration) : '') + '</p>') +
+      accordionItem('🚗', 'Comment s\'y rendre ?', '<p style="margin:0">' + escapeHtml(p.how_to_get_there || 'Non précisé.') + '</p>') +
+
+      '<div class="explorer-section-title">💬 Avis de la communauté</div>' +
+      '<div id="poiAvisList" class="sheet-list" style="max-height:none;margin-bottom:10px"></div>' +
+      '<div id="poiAvisStars" style="font-size:24px;margin-bottom:10px;letter-spacing:4px">' +
+        [1, 2, 3, 4, 5].map((v) => '<span class="star" data-v="' + v + '">★</span>').join('') +
+      '</div>' +
+      '<textarea id="poiAvisText" placeholder="Votre avis sur ce lieu..." style="width:100%;min-height:60px;border:1px solid var(--bv-border);border-radius:8px;padding:8px;font-size:14px;margin-bottom:8px;font-family:inherit;background:var(--bv-card);color:var(--bv-text)"></textarea>' +
+      '<button type="button" id="poiAvisSubmit" class="sheet-submit" style="width:100%">Envoyer</button>' +
+    '</div>';
+
+  poiDetailScroll.innerHTML = html;
+
+  poiDetailScroll.querySelectorAll('.poi-acc-item').forEach((item) => {
+    item.querySelector('.poi-acc-q').addEventListener('click', () => item.classList.toggle('open'));
+  });
+
+  document.getElementById('poiAddToTripBtn').addEventListener('click', () => openTripPickerForPoi(p));
+
+  let poiSelectedRating = 0;
+  const starEls = Array.from(poiDetailScroll.querySelectorAll('#poiAvisStars .star'));
+  starEls.forEach((s) => s.addEventListener('click', () => {
+    poiSelectedRating = Number(s.dataset.v);
+    starEls.forEach((el) => el.classList.toggle('active', Number(el.dataset.v) <= poiSelectedRating));
+  }));
+  document.getElementById('poiAvisSubmit').addEventListener('click', async () => {
+    if (!sb) return;
+    const textEl = document.getElementById('poiAvisText');
+    const text = textEl.value.trim();
+    if (!text && !poiSelectedRating) { alert('Ajoutez une note ou un commentaire.'); return; }
+    try {
+      const { error } = await sb.from('comments').insert({
+        poi_id: p.id, lat: p.lat, lon: p.lon,
+        text: text || null, rating: poiSelectedRating || null, user_id: await currentUserId()
+      });
+      if (error) throw error;
+      textEl.value = '';
+      poiSelectedRating = 0;
+      loadPoiReviews(p.id);
+    } catch (e) {
+      alert("Impossible d'envoyer cet avis : " + e.message);
+    }
+  });
+}
+
+async function loadPoiReviews(poiId) {
+  if (!sb) return;
+  const list = poiDetailScroll.querySelector('#poiAvisList');
+  if (!list) return;
+  list.innerHTML = '<p style="color:var(--bv-muted);font-size:13px">Chargement…</p>';
+  try {
+    const { data, error } = await sb.from('comments').select('text, photo_url, created_at, rating').eq('poi_id', poiId).order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!data.length) { list.innerHTML = '<p style="color:var(--bv-muted);font-size:13px">Aucun avis pour l\'instant. Soyez le premier à en laisser un !</p>'; return; }
+    list.innerHTML = data.map((it) => {
+      let h = '<div class="avis-item">';
+      if (it.rating) h += '<div class="avis-stars">' + '★'.repeat(it.rating) + '☆'.repeat(5 - it.rating) + '</div>';
+      if (it.photo_url) h += '<img src="' + it.photo_url + '" loading="lazy">';
+      if (it.text) h += '<p>' + escapeHtml(it.text) + '</p>';
+      h += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span></div>';
+      return h;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<p style="color:var(--bv-bad);font-size:13px">Erreur de chargement des avis.</p>';
+  }
+}
+
+// "Ajouter à la planification" : réutilise l'écran "Mes itinéraires" existant pour choisir/créer
+// un trip, puis ajoute automatiquement ce lieu comme étape dès que l'éditeur d'itinéraire s'ouvre.
+function openTripPickerForPoi(p) {
+  pendingPoiToAdd = { name: p.name, lat: p.lat, lon: p.lon, poi_id: p.id };
+  closePoiDetail();
+  openTripsListModal();
+}
+function maybeAppendPendingPoi() {
+  if (!pendingPoiToAdd) return;
+  tripStops.push({ name: pendingPoiToAdd.name, lat: pendingPoiToAdd.lat, lon: pendingPoiToAdd.lon, poi_id: pendingPoiToAdd.poi_id });
+  tripSegmentsCache = {};
+  pendingPoiToAdd = null;
+  renderItinerarySteps();
+}
 
 if (sb) {
   sb.auth.onAuthStateChange(() => refreshAccountUI());
