@@ -1,7 +1,7 @@
 {
-  "name": "Bivouac & Camping-car",
-  "short_name": "Bivouac",
-  "description": "Trouvez les aires de camping-car, campings et spots de bivouac en France",
+  "name": "Roamly — Bivouac & Camping-car",
+  "short_name": "Roamly",
+  "description": "Roamly : trouvez les aires de camping-car, campings et spots de bivouac en France",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#F7F5EF",
