@@ -261,6 +261,7 @@ async function loadOfficialSpots() {
     }
     setStatus(spots.length + ' spots officiels chargés', 'ok');
     setTimeout(() => setStatus(''), 2500);
+    updateSpotStatsPills();
   } catch (e) {
     setStatus('Pas de données officielles trouvées', 'error');
   }
@@ -380,9 +381,20 @@ async function loadCommunitySpots() {
     } else {
       setLayerData('community', geojson);
     }
+    updateSpotStatsPills();
   } catch (e) {
     console.error('Erreur chargement spots communautaires', e);
   }
+}
+
+// Bandeaux de stats flottants (DA v2, carte #21) : met à jour les pills "spots chargés" (carte) et
+// "spots référencés" (mur de connexion) à partir des données réellement en mémoire, pas de chiffre inventé.
+function updateSpotStatsPills() {
+  const total = officialSpotsRaw.length + communitySpotsRaw.length;
+  const mapEl = document.getElementById('mapStatSpots');
+  if (mapEl) mapEl.textContent = total ? String(total) : '…';
+  const authEl = document.getElementById('authStatSpots');
+  if (authEl) authEl.textContent = total ? String(total) : '…';
 }
 
 // Ré-applique le filtre actif sur les 3 couches déjà chargées (sans refaire d'appel réseau).
@@ -1165,6 +1177,7 @@ const profilePseudoDisplayEl = document.getElementById('profilePseudoDisplay');
 const profileTravelerToggle = document.getElementById('profileTravelerToggle');
 const statAvisCountEl = document.getElementById('statAvisCount');
 const statSpotsCountEl = document.getElementById('statSpotsCount');
+const statKmCountEl = document.getElementById('statKmCount');
 const profileBadgeStat = document.getElementById('profileBadgeStat');
 const profileBadgeLabel = document.getElementById('profileBadgeLabel');
 
@@ -1185,6 +1198,43 @@ function updateAvatarAndName(pseudo, email) {
     : '?';
   profileAvatarEl.textContent = initials || '?';
   profilePseudoDisplayEl.textContent = label || 'Sans pseudo';
+}
+
+// "km parcourus" (DA v2, carte #25) : approximation, pas une vraie distance routière/GPS.
+// Pour chaque itinéraire enregistré par l'utilisateur, on additionne les distances à vol d'oiseau
+// (haversineKm, déjà utilisée pour les suggestions le long d'un trajet) entre étapes consécutives,
+// triées par position_order. Idéalement on sommerait les distances OSRM réelles de chaque trajet,
+// mais ça demanderait de rappeler l'API de routage pour chaque trip historique à chaque ouverture
+// du profil ; le calcul à vol d'oiseau utilise uniquement des données déjà en base, sans appel réseau
+// supplémentaire — à affiner plus tard si on stocke la distance OSRM au moment de l'enregistrement du trip.
+async function loadKmParcourus(userId) {
+  if (!sb || !statKmCountEl) return;
+  try {
+    const { data: trips, error: tErr } = await sb.from('trips').select('id').eq('user_id', userId);
+    if (tErr) throw tErr;
+    if (!trips || !trips.length) { statKmCountEl.textContent = '0'; return; }
+    const { data: stops, error: sErr } = await sb.from('trip_stops')
+      .select('trip_id, custom_lat, custom_lon, position_order')
+      .in('trip_id', trips.map((t) => t.id))
+      .order('position_order', { ascending: true });
+    if (sErr) throw sErr;
+    const byTrip = {};
+    (stops || []).forEach((s) => {
+      if (s.custom_lat == null || s.custom_lon == null) return;
+      (byTrip[s.trip_id] = byTrip[s.trip_id] || []).push(s);
+    });
+    let totalKm = 0;
+    Object.values(byTrip).forEach((tripStopsList) => {
+      for (let i = 0; i < tripStopsList.length - 1; i++) {
+        const a = tripStopsList[i], b = tripStopsList[i + 1];
+        totalKm += haversineKm(a.custom_lat, a.custom_lon, b.custom_lat, b.custom_lon);
+      }
+    });
+    statKmCountEl.textContent = String(Math.round(totalKm));
+  } catch (e) {
+    console.error('Erreur calcul km parcourus', e);
+    statKmCountEl.textContent = '0';
+  }
 }
 
 async function loadProfile() {
@@ -1209,6 +1259,7 @@ async function loadProfile() {
     const spotsCount = spotsRes.count || 0;
     statAvisCountEl.textContent = String(avisCount);
     statSpotsCountEl.textContent = String(spotsCount);
+    loadKmParcourus(session.user.id);
     if (avisCount + spotsCount >= 5) {
       profileBadgeLabel.textContent = 'Contributeur régulier';
       profileBadgeStat.style.display = 'flex';
@@ -1678,11 +1729,13 @@ let poisCache = []; // lignes de public.points_interet
 let currentTravelerType = null; // profiles.traveler_type, mis à jour par loadProfile()
 
 const POI_CATEGORY_ICON = { 'ville': '🏙️', 'site naturel': '🏞️', 'monument': '🏛️', 'activité': '🎒' };
+// DA v2 (carte #19) : plus de dégradé — aplats unis sur la palette forêt/sauge/terracotta/beige.
+// Nom de fonction/variable conservé (poiGradient) pour limiter le diff ; la valeur n'est plus un gradient.
 const POI_CATEGORY_GRADIENT = {
-  'ville': 'linear-gradient(135deg, rgba(124,58,237,.55), rgba(45,212,191,.35))',
-  'site naturel': 'linear-gradient(135deg, rgba(74,222,128,.5), rgba(56,189,248,.35))',
-  'monument': 'linear-gradient(135deg, rgba(251,191,36,.5), rgba(251,146,60,.35))',
-  'activité': 'linear-gradient(135deg, rgba(192,132,252,.5), rgba(124,58,237,.35))'
+  'ville': '#D9CBB5',
+  'site naturel': '#6F8874',
+  'monument': '#D98558',
+  'activité': '#263D35'
 };
 function poiIcon(cat) { return POI_CATEGORY_ICON[cat] || '📍'; }
 function poiGradient(cat) { return POI_CATEGORY_GRADIENT[cat] || POI_CATEGORY_GRADIENT['site naturel']; }
@@ -1935,8 +1988,15 @@ function renderPoiDetail(p) {
   const heroImgHtml = heroPhoto
     ? '<img src="' + escapeAttr(heroPhoto) + '" alt="" onerror="this.style.display=\'none\'; this.parentElement.classList.add(\'poi-hero-fallback\');">'
     : '';
+  // Bandeau de stats flottant (carte #21) : uniquement des infos réelles (popularité/pépite déjà en base),
+  // pas de note chiffrée inventée (les lieux éditoriaux points_interet n'ont pas de champ "avis" comme les spots).
+  let heroPills = '';
+  if (p.popularity === 'forte') heroPills += '<div class="stat-glass-pill stat-glass-light"><span class="stat-glass-num">⭐</span><span class="stat-glass-label">Incontournable</span></div>';
+  if (p.hidden_gem) heroPills += '<div class="stat-glass-pill stat-glass-light"><span class="stat-glass-num">💎</span><span class="stat-glass-label">Pépite</span></div>';
+
   let html = '<div class="poi-hero' + (heroPhoto ? '' : ' poi-hero-fallback') + '" style="background:' + poiGradient(p.category) + '">' +
       heroImgHtml +
+      (heroPills ? '<div class="stat-glass-row" style="position:absolute;top:12px;right:12px;z-index:2">' + heroPills + '</div>' : '') +
       '<div class="poi-hero-overlay"><div class="poi-hero-title">' + escapeHtml(p.name) + '</div>' +
       '<div class="poi-hero-region">' + escapeHtml(p.region) + ' · ' + escapeHtml(p.category) + '</div></div>' +
     '</div>' +
