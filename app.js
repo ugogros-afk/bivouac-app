@@ -34,6 +34,41 @@ function escapeAttr(s) {
   return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
+// Photos trop lentes à charger (#25) : les photo_urls de points_interet pointent souvent vers le fichier
+// original Wikimedia Commons (plusieurs Mo), pas une miniature. On réécrit l'URL vers le chemin "thumb"
+// de Wikimedia avec une largeur fixe quand c'est possible ; sinon on renvoie l'URL telle quelle (no-op
+// pour toute autre source d'image, pour ne rien casser si on change de source plus tard).
+// Photos trop lentes à charger (#25), partie 2 : les photos envoyées par les users (avis/comments)
+// partent directement du fichier caméra du téléphone (souvent 3-10 Mo). On les redimensionne et
+// recompresse côté client avant l'upload Supabase Storage. En cas d'échec (format non supporté par
+// <canvas>, etc.), on retombe sur le fichier original plutôt que de bloquer l'envoi.
+async function compressImageForUpload(file, maxDim, quality) {
+  maxDim = maxDim || 1600; quality = quality || 0.82;
+  if (!file || !file.type || !file.type.startsWith('image/') || file.type === 'image/gif') return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) return file;
+    return new File([blob], (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch (e) {
+    console.warn('Compression photo échouée, envoi du fichier original', e);
+    return file;
+  }
+}
+
+function wikimediaThumb(url, width) {
+  if (!url) return url;
+  const m = String(url).match(/^(https?:\/\/upload\.wikimedia\.org\/wikipedia\/commons)\/([0-9a-f])\/([0-9a-f]{2})\/([^/?#]+)$/i);
+  if (!m) return url; // déjà un /thumb/, ou pas une URL Commons reconnue
+  const [, base, a, ab, filename] = m;
+  return base + '/thumb/' + a + '/' + ab + '/' + filename + '/' + width + 'px-' + filename;
+}
+
 const COLORS = { aire: '#4ADE80', camping: '#38BDF8', bivouac: '#FB923C', community: '#C084FC' };
 
 // --- Filtre par type de spot (barre de chips en haut) ---
@@ -524,9 +559,10 @@ async function submitAvis() {
   try {
     let photoUrl = null;
     if (file) {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const uploadFile = await compressImageForUpload(file);
+      const ext = (uploadFile.name.split('.').pop() || 'jpg').toLowerCase();
       const path = currentAvisSpot.id + '_' + Date.now() + '.' + ext;
-      const { error: upErr } = await sb.storage.from('photos').upload(path, file);
+      const { error: upErr } = await sb.storage.from('photos').upload(path, uploadFile);
       if (upErr) throw upErr;
       const { data: urlData } = sb.storage.from('photos').getPublicUrl(path);
       photoUrl = urlData.publicUrl;
@@ -1859,7 +1895,7 @@ function poiCardHtml(p) {
   let badges = '';
   if (p.popularity === 'forte') badges += '<span class="poi-badge">⭐ Incontournable</span>';
   if (p.hidden_gem) badges += '<span class="poi-badge poi-badge-gem">💎 Pépite</span>';
-  const photoUrl = Array.isArray(p.photo_urls) && p.photo_urls.length ? p.photo_urls[0] : null;
+  const photoUrl = Array.isArray(p.photo_urls) && p.photo_urls.length ? wikimediaThumb(p.photo_urls[0], 400) : null;
   const imgHtml = photoUrl
     ? '<img src="' + escapeAttr(photoUrl) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'; this.parentElement.classList.add(\'poi-card-img-fallback\');">'
     : '';
@@ -1983,7 +2019,7 @@ function renderPoiDetail(p) {
   const tags = Array.isArray(p.ambiance_tags) ? p.ambiance_tags : [];
   poiDetailFavBtn.textContent = isPoiFavorite(p.id) ? '★' : '☆';
 
-  const heroPhoto = Array.isArray(p.photo_urls) && p.photo_urls.length ? p.photo_urls[0] : null;
+  const heroPhoto = Array.isArray(p.photo_urls) && p.photo_urls.length ? wikimediaThumb(p.photo_urls[0], 800) : null;
   const heroCredit = Array.isArray(p.photo_credits) && p.photo_credits.length ? p.photo_credits[0] : null;
   const heroImgHtml = heroPhoto
     ? '<img src="' + escapeAttr(heroPhoto) + '" alt="" onerror="this.style.display=\'none\'; this.parentElement.classList.add(\'poi-hero-fallback\');">'
