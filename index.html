@@ -530,6 +530,83 @@
 
   /* Fiche spot (popup + bottom sheet) restylées via les tokens ci-dessus — pas de CSS additionnel nécessaire,
      seules les variables --bv-* changent (voir carte #23). */
+
+  /* ===== Carte #14 (25/11/2026) : alignement fin sur les 7 mockups DA v2 ===== */
+
+  /* Mini-carte d'itinéraire (Itineraire.html) : remplace l'ancien simple texte "XX km" par un aperçu
+     visuel avec pins numérotés sur fond sauge. Projection équirectangulaire naïve des lat/lon des étapes
+     dans la boîte (pas une vraie tuile carto) : suffisant pour un repère visuel, pas pour la précision. */
+  .itin-minimap-wrap { padding: 4px 16px 0; }
+  .itin-minimap { position: relative; height: 150px; border-radius: 20px; background: var(--bv-sage); overflow: hidden; }
+  .itin-minimap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .itin-minimap-pill {
+    position: absolute; top: 10px; left: 10px; background: rgba(38,61,53,0.88); color: var(--bv-on-accent);
+    font-size: 11px; font-weight: 700; padding: 7px 12px; border-radius: 999px; backdrop-filter: blur(6px);
+  }
+  .itin-minimap-add {
+    position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 999px;
+    border: none; background: var(--bv-surface-raised); color: var(--bv-accent); font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; box-shadow: var(--bv-shadow-card); padding: 0;
+  }
+  .itin-minimap-empty {
+    display: flex; align-items: center; justify-content: center; height: 100%; text-align: center;
+    color: rgba(247,245,239,.85); font-size: 12.5px; padding: 0 24px;
+  }
+  .itin-toolbar-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px 2px; }
+  .itin-nights-pill {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    flex-shrink: 0; width: 46px; height: 46px; border-radius: 999px; border: 2.5px solid var(--bv-accent);
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; color: var(--bv-text); line-height: 1.1;
+  }
+  .itin-nights-pill span { font-size: 7.5px; font-weight: 600; color: var(--bv-muted); font-family: 'Inter', sans-serif; }
+  .itin-nights-btn { border: none; background: var(--bv-card); color: var(--bv-text); width: 26px; height: 26px; border-radius: 50%; font-size: 14px; flex-shrink: 0; }
+  .itin-optimize-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; height: 44px;
+    border-radius: 999px; border: 1.5px solid var(--bv-accent-warm); background: transparent; color: var(--bv-accent-warm);
+    font-family: inherit; font-weight: 700; font-size: 13.5px; padding: 0;
+  }
+  .itin-optimize-btn:disabled { opacity: .5; }
+
+  /* Fiche spot en bottom sheet (Carte.html) : remplace le popup MapLibre .bv-popup au clic sur un spot.
+     Pas de photo par spot dans nos données OSM/DATAtourisme -> pastille illustrée par catégorie à la
+     place d'une vraie photo (à remplacer si une source de photos par spot est branchée un jour). */
+  .spot-sheet {
+    position: absolute; left: 10px; right: 10px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 1400;
+    background: var(--bv-surface-raised); border-radius: 22px; box-shadow: 0 16px 36px rgba(38,61,53,.28);
+    overflow: hidden; display: none; max-height: 58vh; flex-direction: column;
+  }
+  .spot-sheet.show { display: flex; }
+  .spot-sheet-handle { width: 36px; height: 4px; border-radius: 999px; background: rgba(38,61,53,.18); margin: 9px auto 0; flex-shrink: 0; }
+  .spot-sheet-photo { position: relative; height: 104px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+  .spot-sheet-close {
+    position: absolute; top: 8px; right: 10px; width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,.88); color: var(--bv-text); font-size: 13px; padding: 0;
+  }
+  .spot-sheet-fav { position: absolute; bottom: 8px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: none; background: rgba(255,255,255,.92); color: var(--bv-accent-warm); font-size: 16px; padding: 0; }
+  .spot-sheet-legal { position: absolute; bottom: 8px; left: 10px; }
+  .spot-sheet-body { padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; }
+  .spot-sheet-name { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; margin: 0 0 2px; }
+  .spot-sheet-sub { font-size: 12.5px; color: var(--bv-muted); margin-bottom: 8px; }
+  .spot-sheet-row { display: flex; align-items: center; gap: 12px; font-size: 12.5px; color: var(--bv-muted); margin-bottom: 12px; flex-wrap: wrap; }
+  .spot-sheet-row .rating-summary { margin: 0; }
+  .spot-sheet-cta {
+    width: 100%; background: var(--bv-gradient); color: var(--bv-on-accent); border: none; border-radius: 999px;
+    padding: 13px; font-size: 14.5px; font-weight: 700; font-family: inherit; box-shadow: var(--bv-shadow-button); margin-bottom: 8px;
+  }
+  .spot-sheet-secondary-row { display: flex; gap: 8px; }
+  .spot-sheet-secondary-row .bv-popup-btn { flex: 1; }
+
+  /* Liens de compte (Profil.html) : favoris / notifications / confidentialité, au-dessus de "Se déconnecter". */
+  .profile-links-list { margin: 18px 0 4px; border-top: 1px solid var(--bv-border); }
+  .profile-link-row {
+    width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 2px; border-bottom: 1px solid var(--bv-border);
+    background: none; border-left: none; border-right: none; border-top: none; font-family: inherit; font-size: 14px;
+    color: var(--bv-text); text-align: left;
+  }
+  .profile-link-row .profile-link-icon { width: 20px; text-align: center; flex-shrink: 0; }
+  .profile-link-row .profile-link-label { flex: 1; }
+  .profile-link-row .profile-link-chevron { color: var(--bv-muted2); flex-shrink: 0; }
+  .profile-logout-btn { width: 100%; background: none; border: none; padding: 14px 2px 0; font-size: 14px; font-weight: 700; color: var(--bv-bad); font-family: inherit; text-align: center; }
 </style>
 </head>
 <body>
@@ -756,7 +833,18 @@
           <button id="profileSaveBtn" class="auth-submit">Enregistrer mon profil</button>
           <div id="profileSaved" style="text-align:center;margin-top:8px"></div>
         </div>
-        <button id="logoutBtn" class="sheet-secondary" style="width:100%;margin-top:16px">Se déconnecter</button>
+        <div class="profile-links-list">
+          <button type="button" class="profile-link-row" onclick="openFavModal()">
+            <span class="profile-link-icon">⭐</span><span class="profile-link-label">Mes favoris</span><span class="profile-link-chevron">›</span>
+          </button>
+          <button type="button" class="profile-link-row" onclick="alert('Les notifications arrivent bientôt 🚧')">
+            <span class="profile-link-icon">🔔</span><span class="profile-link-label">Notifications</span><span class="profile-link-chevron">›</span>
+          </button>
+          <button type="button" class="profile-link-row" onclick="alert('Page de confidentialité à venir 🚧')">
+            <span class="profile-link-icon">🔒</span><span class="profile-link-label">Confidentialité</span><span class="profile-link-chevron">›</span>
+          </button>
+        </div>
+        <button id="logoutBtn" class="profile-logout-btn">Se déconnecter</button>
       </div>
     </div>
   </div>
@@ -776,6 +864,15 @@
   <div class="app-page-header">
     <button id="itineraryBackBtn" class="app-page-back" aria-label="Retour">←</button>
     <input id="itineraryNameInput" class="itinerary-name-input" value="Mon itinéraire" maxlength="60">
+  </div>
+  <div class="itin-minimap-wrap">
+    <div id="itinMinimap" class="itin-minimap"></div>
+  </div>
+  <div class="itin-toolbar-row">
+    <button type="button" id="itinNightsMinus" class="itin-nights-btn" aria-label="Moins de nuits">−</button>
+    <div id="itinNightsPill" class="itin-nights-pill"><span id="itinNightsVal">0</span><span>nuits</span></div>
+    <button type="button" id="itinNightsPlus" class="itin-nights-btn" aria-label="Plus de nuits">+</button>
+    <button type="button" id="itinOptimizeBtn" class="itin-optimize-btn">✨ Optimiser</button>
   </div>
   <div id="itinerarySteps" class="app-page-scroll"></div>
   <div class="itinerary-footer">
@@ -846,6 +943,27 @@
     <div id="postComposerError" style="color:var(--bv-bad);font-size:13px;margin-bottom:8px;display:none"></div>
     <button id="postSubmitBtn" class="auth-submit" type="button">Publier</button>
     <button id="postCancelBtn" class="sheet-secondary" type="button" style="width:100%;margin-top:10px">Annuler</button>
+  </div>
+</div>
+
+<!-- Fiche spot en bottom sheet (carte #14) : remplace le popup MapLibre au clic sur un point de la carte -->
+<div id="spotSheet" class="spot-sheet">
+  <div class="spot-sheet-handle"></div>
+  <div id="spotSheetPhoto" class="spot-sheet-photo">
+    <span id="spotSheetIcon"></span>
+    <div id="spotSheetLegal" class="spot-sheet-legal"></div>
+    <button id="spotSheetClose" class="spot-sheet-close" aria-label="Fermer">✕</button>
+    <button id="spotSheetFav" class="spot-sheet-fav" aria-label="Favori">☆</button>
+  </div>
+  <div class="spot-sheet-body">
+    <h3 id="spotSheetName" class="spot-sheet-name"></h3>
+    <div id="spotSheetSub" class="spot-sheet-sub"></div>
+    <div class="spot-sheet-row">
+      <span id="spotSheetPrice"></span>
+      <span class="rating-summary" id="spotSheetRating">Chargement de la note…</span>
+    </div>
+    <button type="button" id="spotSheetCta" class="spot-sheet-cta">Itinéraire</button>
+    <div class="spot-sheet-secondary-row" id="spotSheetSecondary"></div>
   </div>
 </div>
 

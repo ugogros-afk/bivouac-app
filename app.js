@@ -183,6 +183,67 @@ function popupHtml(p, lat, lon) {
   return html;
 }
 
+// Bottom sheet riche au clic sur un spot (carte #14, cf. Carte.html) : remplace le popup MapLibre
+// ci-dessus (popupHtml reste défini au cas où, mais n'est plus appelée depuis le clic sur la carte).
+// Pas de photo par spot dans nos données OSM/DATAtourisme : pastille illustrée par catégorie à la
+// place d'une vraie photo.
+const SPOT_CATEGORY_ICON = { aire: '🅿️', camping: '🏕️', bivouac: '⛺', community: '🌍' };
+const spotSheetEl = document.getElementById('spotSheet');
+const spotSheetPhotoEl = document.getElementById('spotSheetPhoto');
+const spotSheetIconEl = document.getElementById('spotSheetIcon');
+const spotSheetLegalEl = document.getElementById('spotSheetLegal');
+const spotSheetNameEl = document.getElementById('spotSheetName');
+const spotSheetSubEl = document.getElementById('spotSheetSub');
+const spotSheetPriceEl = document.getElementById('spotSheetPrice');
+const spotSheetRatingEl = document.getElementById('spotSheetRating');
+const spotSheetCtaEl = document.getElementById('spotSheetCta');
+const spotSheetSecondaryEl = document.getElementById('spotSheetSecondary');
+const spotSheetCloseBtn = document.getElementById('spotSheetClose');
+const spotSheetFavBtn = document.getElementById('spotSheetFav');
+let currentSheetSpot = null;
+
+function closeSpotSheet() {
+  spotSheetEl.classList.remove('show');
+  currentSheetSpot = null;
+}
+spotSheetCloseBtn.addEventListener('click', closeSpotSheet);
+
+function openSpotSheet(p, lat, lon) {
+  currentSheetSpot = { p, lat, lon };
+  const color = COLORS[p.cls] || '#9196A1';
+  const gmaps = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon;
+  const waze = 'https://waze.com/ul?ll=' + lat + ',' + lon + '&navigate=yes';
+
+  spotSheetPhotoEl.style.background = color + '26';
+  spotSheetIconEl.textContent = SPOT_CATEGORY_ICON[p.cls] || '📍';
+  spotSheetLegalEl.innerHTML = legalBadgeHtml(p.legalStatus);
+  spotSheetFavBtn.textContent = isFavorite(p.spotId) ? '★' : '☆';
+  spotSheetFavBtn.onclick = async () => {
+    spotSheetFavBtn.disabled = true;
+    const nowFav = await toggleFavorite(p.spotId, lat, lon, p.name);
+    spotSheetFavBtn.textContent = nowFav ? '★' : '☆';
+    spotSheetFavBtn.disabled = false;
+  };
+
+  spotSheetNameEl.textContent = p.name;
+  spotSheetSubEl.textContent = (CLS_LABELS[p.cls] || p.cls) + (p.addr ? ' · ' + p.addr : '');
+  spotSheetPriceEl.textContent = p.fee ? '💶 ' + p.fee : '';
+  spotSheetRatingEl.textContent = 'Chargement de la note…';
+  loadRatingSummary(p.spotId, { getElement: () => spotSheetEl });
+
+  spotSheetCtaEl.onclick = () => {
+    closeSpotSheet();
+    openTripPickerForPoi({ name: p.name, lat, lon, id: null });
+  };
+
+  let secondary = '<a href="' + gmaps + '" target="_blank" rel="noopener" class="bv-popup-btn">Maps</a>';
+  secondary += '<a href="' + waze + '" target="_blank" rel="noopener" class="bv-popup-btn">Waze</a>';
+  secondary += '<button onclick="openAvisModal(\'' + p.spotId + '\',' + lat + ',' + lon + ')" class="bv-popup-btn">💬 Avis</button>';
+  spotSheetSecondaryEl.innerHTML = secondary;
+
+  spotSheetEl.classList.add('show');
+}
+
 function addSpotLayer(id, geojson, clustered) {
   map.addSource(id, {
     type: 'geojson',
@@ -246,16 +307,12 @@ function addSpotLayer(id, geojson, clustered) {
     });
   }
 
-  // Popup au clic sur un point individuel
+  // Bottom sheet riche au clic sur un point individuel (carte #14, remplace l'ancien popup MapLibre)
   map.on('click', id + '-points', (e) => {
     const f = e.features[0];
     const p = f.properties;
     const [lon, lat] = f.geometry.coordinates;
-    const popup = new maplibregl.Popup({ offset: 10, className: 'bv-popup', maxWidth: '280px' })
-      .setLngLat(f.geometry.coordinates)
-      .setHTML(popupHtml(p, lat, lon))
-      .addTo(map);
-    loadRatingSummary(p.spotId, popup);
+    openSpotSheet(p, lat, lon);
   });
 
   map.on('mouseenter', id + '-points', () => map.getCanvas().style.cursor = 'pointer');
@@ -780,13 +837,20 @@ document.getElementById('addSpotUseMap').addEventListener('click', () => {
 });
 
 map.on('click', (e) => {
-  if (!pickingLocationOnMap) return;
-  pickingLocationOnMap = false;
-  map.getCanvas().style.cursor = '';
-  setStatus('');
-  pendingSpotCoords = { lat: e.lngLat.lat, lon: e.lngLat.lng, label: null };
-  addSpotModal.classList.add('show');
-  showAddSpotStep2();
+  if (pickingLocationOnMap) {
+    pickingLocationOnMap = false;
+    map.getCanvas().style.cursor = '';
+    setStatus('');
+    pendingSpotCoords = { lat: e.lngLat.lat, lon: e.lngLat.lng, label: null };
+    addSpotModal.classList.add('show');
+    showAddSpotStep2();
+    return;
+  }
+  // Clic sur une zone vide de la carte (pas sur un point/cluster) : referme le bottom sheet de spot.
+  if (currentSheetSpot) {
+    const hit = map.queryRenderedFeatures(e.point).some((f) => f.layer && /-points$|-clusters$/.test(f.layer.id));
+    if (!hit) closeSpotSheet();
+  }
 });
 
 addSpotSubmitBtn.addEventListener('click', async () => {
@@ -1509,15 +1573,23 @@ const itineraryStepsEl = document.getElementById('itinerarySteps');
 const itineraryBackBtn = document.getElementById('itineraryBackBtn');
 const itinerarySaveBtn = document.getElementById('itinerarySaveBtn');
 const itinerarySaveStatus = document.getElementById('itinerarySaveStatus');
+const itinMinimapEl = document.getElementById('itinMinimap');
+const itinNightsValEl = document.getElementById('itinNightsVal');
+const itinOptimizeBtn = document.getElementById('itinOptimizeBtn');
 
 let currentTripId = null;
 let tripStops = []; // [{ name, lat, lon }]
 let tripSegmentsCache = {}; // clé "i" -> { distanceKm, durationMin, coords, suggestions }
+// "Nuits planifiées" (carte #14, Itineraire.html) : notre modèle de données (trip_stops) n'a pas de
+// champ "nuits" par étape -> compteur global, en mémoire seulement (non persisté en base), initialisé
+// au nombre d'étapes - 1. Simplification assumée, à affiner si on ajoute un vrai champ nights plus tard.
+let plannedNights = 0;
 
 function openItineraryModal(tripId) {
   currentTripId = tripId;
   tripStops = [];
   tripSegmentsCache = {};
+  plannedNights = 0;
   itineraryNameInput.value = 'Mon itinéraire';
   itinerarySaveStatus.textContent = '';
   itineraryModal.classList.add('show');
@@ -1528,6 +1600,89 @@ function openItineraryModal(tripId) {
     maybeAppendPendingPoi();
   }
 }
+
+// Mini-carte d'itinéraire (Itineraire.html) : pins numérotés + trajet en pointillés sur fond sauge,
+// projection équirectangulaire naïve des lat/lon dans la boîte (repère visuel, pas une vraie tuile carto).
+const ITIN_PIN_COLORS = ['#D98558', '#6F8874', '#263D35', '#B45309', '#9333EA', '#2563EB'];
+function renderItinMinimap() {
+  const pts = tripStops.filter((s) => s.lat != null && s.lon != null);
+  if (pts.length < 2) {
+    itinMinimapEl.innerHTML = '<div class="itin-minimap-empty">Ajoute au moins deux étapes pour voir l\'aperçu du trajet.</div>' +
+      '<button type="button" id="itinMinimapAdd" class="itin-minimap-add" aria-label="Ajouter une étape">+</button>';
+    document.getElementById('itinMinimapAdd').addEventListener('click', focusAddStepForm);
+    return;
+  }
+  const pad = 24, w = itinMinimapEl.clientWidth || 358, h = itinMinimapEl.clientHeight || 150;
+  const lats = pts.map((p) => p.lat), lons = pts.map((p) => p.lon);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const spanLat = Math.max(maxLat - minLat, 0.001), spanLon = Math.max(maxLon - minLon, 0.001);
+  const project = (p) => {
+    const x = pad + ((p.lon - minLon) / spanLon) * (w - pad * 2);
+    const y = (h - pad) - ((p.lat - minLat) / spanLat) * (h - pad * 2);
+    return [x, y];
+  };
+  const coords = pts.map(project);
+  const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');
+  let svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">';
+  svg += '<path d="' + pathD + '" fill="none" stroke="rgba(247,245,239,0.75)" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"/>';
+  coords.forEach((c, i) => {
+    const color = ITIN_PIN_COLORS[i % ITIN_PIN_COLORS.length];
+    svg += '<circle cx="' + c[0].toFixed(1) + '" cy="' + c[1].toFixed(1) + '" r="13" fill="' + color + '" stroke="#F7F5EF" stroke-width="3"/>';
+    svg += '<text x="' + c[0].toFixed(1) + '" y="' + c[1].toFixed(1) + '" text-anchor="middle" dominant-baseline="central" font-family="Nunito,sans-serif" font-weight="800" font-size="12" fill="#F7F5EF">' + (i + 1) + '</text>';
+  });
+  svg += '</svg>';
+
+  let totalKm = 0, totalMin = 0, known = true;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const seg = tripSegmentsCache[i];
+    if (seg && !seg.error) { totalKm += seg.distanceKm; totalMin += seg.durationMin; }
+    else { known = false; totalKm += haversineKm(pts[i].lat, pts[i].lon, pts[i + 1].lat, pts[i + 1].lon); }
+  }
+  const pillLabel = known
+    ? Math.round(totalKm) + ' km · ' + formatDuration(totalMin) + ' de route'
+    : '≈ ' + Math.round(totalKm) + ' km à vol d\'oiseau';
+
+  itinMinimapEl.innerHTML = svg +
+    '<div class="itin-minimap-pill">' + escapeHtml(pillLabel) + '</div>' +
+    '<button type="button" id="itinMinimapAdd" class="itin-minimap-add" aria-label="Ajouter une étape">+</button>';
+  document.getElementById('itinMinimapAdd').addEventListener('click', focusAddStepForm);
+}
+function focusAddStepForm() {
+  const btn = document.getElementById('itinAddStepBtn');
+  if (btn) { btn.scrollIntoView({ behavior: 'smooth', block: 'center' }); btn.click(); }
+}
+
+document.getElementById('itinNightsMinus').addEventListener('click', () => {
+  plannedNights = Math.max(0, plannedNights - 1);
+  itinNightsValEl.textContent = String(plannedNights);
+});
+document.getElementById('itinNightsPlus').addEventListener('click', () => {
+  plannedNights += 1;
+  itinNightsValEl.textContent = String(plannedNights);
+});
+
+// "Optimiser" (carte #14) : réordonne les étapes intermédiaires par plus proche voisin (glouton) pour
+// raccourcir le trajet total à vol d'oiseau. Simplification assumée : ce n'est pas un vrai TSP résolu
+// (pas optimal à 100%), mais un ordre généralement bien meilleur que l'ordre de saisie, sans dépendance
+// externe ni calcul d'itinéraire réel (OSRM) coûteux pour chaque permutation.
+itinOptimizeBtn.addEventListener('click', () => {
+  if (tripStops.length < 3) return;
+  const remaining = tripStops.slice(1);
+  const ordered = [tripStops[0]];
+  while (remaining.length) {
+    const last = ordered[ordered.length - 1];
+    let bestIdx = 0, bestDist = Infinity;
+    remaining.forEach((s, idx) => {
+      const d = haversineKm(last.lat, last.lon, s.lat, s.lon);
+      if (d < bestDist) { bestDist = d; bestIdx = idx; }
+    });
+    ordered.push(remaining.splice(bestIdx, 1)[0]);
+  }
+  tripStops = ordered;
+  tripSegmentsCache = {};
+  renderItinerarySteps();
+});
 function closeItineraryModal() {
   itineraryModal.classList.remove('show');
 }
@@ -1573,6 +1728,9 @@ async function ensureSegment(i) {
 
 async function renderItinerarySteps() {
   itineraryStepsEl.innerHTML = '';
+  renderItinMinimap();
+  itinNightsValEl.textContent = String(plannedNights);
+  itinOptimizeBtn.disabled = tripStops.length < 3;
 
   if (!tripStops.length) {
     const empty = document.createElement('div');
@@ -1709,6 +1867,7 @@ async function renderItinerarySteps() {
           ? 'Trajet indisponible pour ce segment'
           : Math.round(seg.distanceKm) + ' km · environ ' + formatDuration(seg.durationMin) + ' de route';
       }
+      renderItinMinimap();
       const holder = itineraryStepsEl.querySelector('.itin-suggestions-holder[data-i="' + i + '"]');
       if (holder && !seg.error && seg.suggestions && seg.suggestions.length) {
         holder.innerHTML =
