@@ -183,6 +183,7 @@
   .auth-content { max-width: 420px; margin: 0 auto; text-align: center; }
   .auth-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 18px; }
   .auth-logo-mark { width: 30px; height: 30px; flex-shrink: 0; }
+  .auth-logo-wordmark { height: 34px; width: auto; display: block; }
   .auth-logo-word { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 20px; color: var(--bv-text); }
   .auth-title { text-align: center; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 27px; line-height: 1.22; margin: 0 0 28px; }
   .auth-title-accent { color: var(--bv-link); }
@@ -496,10 +497,7 @@
 <div id="map"></div>
 <div id="topbar">
   <div class="topbar-brand">
-    <svg class="roamly-mark" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M9 25V7h8.5c3.6 0 6 2.2 6 5.4 0 2.5-1.5 4.3-3.8 5l5 7.6h-4.6l-4.3-6.8H12.8V25H9zm3.8-10h4.3c1.7 0 2.8-.9 2.8-2.5 0-1.6-1.1-2.5-2.8-2.5h-4.3V15z" fill="#263D35"/>
-      <circle cx="23.2" cy="23.6" r="3.1" fill="#D98558"/>
-    </svg>
+    <img class="roamly-mark" src="icons/icon-192.png" width="20" height="20" alt="" aria-hidden="true">
     <span class="topbar-brand-word">Roamly</span>
   </div>
   <div id="citySearchRow">
@@ -616,12 +614,7 @@
   <div class="auth-scroll">
     <div class="auth-content">
       <div class="auth-logo">
-        <svg class="auth-logo-mark roamly-mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
-          <path d="M9 25V7h8.5c3.6 0 6 2.2 6 5.4 0 2.5-1.5 4.3-3.8 5l5 7.6h-4.6l-4.3-6.8H12.8V25H9zm3.8-10h4.3c1.7 0 2.8-.9 2.8-2.5 0-1.6-1.1-2.5-2.8-2.5h-4.3V15z" fill="#263D35"/>
-          <circle cx="23.2" cy="23.6" r="3.1" fill="#D98558"/>
-          <path d="M8 24.5c1.6-2.4 4-2.6 5.3-1.1" stroke="#6F8874" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-        </svg>
-        <span class="auth-logo-word">Roamly</span>
+        <img class="auth-logo-wordmark" src="icons/wordmark.png" alt="Roamly">
       </div>
       <h1 class="auth-title">Trouve ton bivouac,<br><span class="auth-title-accent">en toute confiance.</span></h1>
       <div id="authStatsPills" class="stat-glass-row" style="justify-content:center;margin:-6px 0 22px">
