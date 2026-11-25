@@ -79,18 +79,22 @@
     font-size: 11.5px; display: flex; gap: 10px; flex-wrap: wrap; max-width: calc(100% - 20px); color: var(--bv-muted);
     backdrop-filter: blur(6px); box-shadow: var(--bv-shadow-card);
   }
+  /* Nav flottante en pilule (mockups 25/11/2026) : remplace l'ancienne barre pleine largeur. */
   #bottomNav {
-    position: absolute; left: 0; right: 0; bottom: 0; z-index: 1500;
-    display: flex; background: var(--bv-surface-raised); border-top: 1px solid var(--bv-border);
-    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    position: absolute; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 1500;
+    display: flex; align-items: center; gap: 4px; height: 66px; padding: 6px;
+    background: var(--bv-surface-raised); border-radius: 999px;
+    box-shadow: 0 16px 32px rgba(38,61,53,.22);
   }
   .nav-item {
-    flex: 1; border: none; background: none; display: flex; flex-direction: column;
-    align-items: center; gap: 4px; font-size: 10.5px; font-weight: 500; color: var(--bv-muted2); padding: 6px 0;
-    font-family: inherit;
+    flex: 1; height: 100%; border: none; background: transparent; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    color: var(--bv-muted2); font-family: inherit; padding: 0;
   }
-  .nav-item .nav-icon { font-size: 19px; line-height: 1; }
-  .nav-item.active { color: var(--bv-text); font-weight: 600; }
+  .nav-item svg { display: block; flex-shrink: 0; }
+  .nav-item .nav-label { font-size: 12px; font-weight: 700; display: none; white-space: nowrap; }
+  .nav-item.active { flex: 1.7; background: var(--bv-accent); color: var(--bv-on-accent); }
+  .nav-item.active .nav-label { display: inline; }
   .legend-item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
   .dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
   #status {
@@ -164,13 +168,13 @@
     background: var(--bv-card); color: var(--bv-text);
   }
 
-  /* Compte utilisateur : page plein écran (pas un bottom sheet) */
-  #accountModal.auth-page {
+  /* Pages plein écran (Compte, Communauté) : même pattern, pas un bottom sheet */
+  .auth-page {
     position: fixed; inset: 0; z-index: 3000; display: none;
     background: var(--bv-surface);
     color: var(--bv-text);
   }
-  #accountModal.auth-page.show { display: block; }
+  .auth-page.show { display: block; }
   .auth-close {
     position: absolute; top: calc(14px + env(safe-area-inset-top)); right: 16px; z-index: 10;
     border: none; background: rgba(38,61,53,.08); color: var(--bv-text); width: 36px; height: 36px;
@@ -399,6 +403,41 @@
     border-bottom: 1px solid var(--bv-border); padding: 10px 0; font-size: 14px; cursor: pointer; color: var(--bv-text);
   }
   .fav-remove { border: none; background: none; color: var(--bv-bad); font-size: 16px; padding: 4px 8px; }
+
+  /* Communauté (#28) */
+  .friend-result-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--bv-surface-raised); border: 1px solid var(--bv-border); border-radius: 14px;
+    padding: 10px 14px; margin-bottom: 8px; font-size: 14px;
+  }
+  .friend-result-item button {
+    border: none; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 700;
+    font-family: inherit; background: var(--bv-accent); color: var(--bv-on-accent);
+  }
+  .friend-result-item button.following { background: var(--bv-card); color: var(--bv-muted); }
+  .feed-post-card {
+    background: var(--bv-surface-raised); border: 1px solid var(--bv-border); border-radius: 16px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .feed-post-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .feed-post-author { font-weight: 700; font-size: 14px; }
+  .feed-post-date { font-size: 12px; color: var(--bv-muted2); }
+  .feed-post-content { font-size: 14px; margin-bottom: 8px; white-space: pre-wrap; }
+  .feed-post-card img { width: 100%; border-radius: 10px; margin-bottom: 8px; display: block; max-height: 260px; object-fit: cover; }
+  .feed-post-stats { display: flex; gap: 14px; font-size: 12.5px; color: var(--bv-muted); margin-bottom: 8px; }
+  .feed-post-actions { display: flex; gap: 18px; border-top: 1px solid var(--bv-border); padding-top: 8px; }
+  .feed-post-actions button {
+    background: none; border: none; color: var(--bv-muted); font-family: inherit; font-size: 13px; padding: 0; font-weight: 600;
+  }
+  .feed-post-actions button.kudo-active { color: var(--bv-accent-warm); }
+  .feed-post-comments { margin-top: 10px; border-top: 1px dashed var(--bv-border); padding-top: 8px; }
+  .feed-post-comment { font-size: 13px; margin-bottom: 4px; }
+  .feed-post-comment-form { display: flex; gap: 6px; margin-top: 6px; }
+  .feed-post-comment-form input {
+    flex: 1; border: 1px solid var(--bv-border); border-radius: 999px; padding: 7px 12px;
+    font-size: 13px; font-family: inherit; background: var(--bv-card); color: var(--bv-text);
+  }
+  .feed-post-comment-form button { border: none; background: var(--bv-accent); color: var(--bv-on-accent); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; font-family: inherit; }
 
   /* Explorer France (#13/#18) */
   .explorer-search input {
@@ -767,12 +806,71 @@
   <div id="poiDetailScroll" class="app-page-scroll" style="padding:0"></div>
 </div>
 
-<!-- Navigation du bas -->
+<!-- Communauté (#28) : page plein écran, façon fil social -->
+<div id="communauteModal" class="auth-page">
+  <button id="communauteClose" class="auth-close">✕</button>
+  <div class="auth-scroll" style="text-align:left;max-width:520px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px">
+      <h1 style="font-family:'Nunito',sans-serif;font-weight:800;font-size:22px;margin:0;color:var(--bv-text)">Communauté</h1>
+      <button id="communauteShareBtn" class="sheet-secondary" style="padding:8px 14px;font-size:13px;width:auto">↗ Partager l'app</button>
+    </div>
+
+    <div class="auth-tabs" style="margin-bottom:18px">
+      <button class="account-tab active" id="communauteTabFeed" type="button">Fil</button>
+      <button class="account-tab" id="communauteTabGroups" type="button">Groupes</button>
+    </div>
+
+    <div id="communauteFeedPane">
+      <div style="margin-bottom:16px;position:relative">
+        <input type="text" id="friendSearchInput" class="account-input" style="text-align:left" placeholder="Rechercher un pseudo à suivre…" autocomplete="off">
+        <div id="friendSearchResults"></div>
+      </div>
+
+      <button id="composePostBtn" class="auth-submit" type="button" style="margin-bottom:22px">+ Partager un voyage</button>
+
+      <div id="communauteFeedList">Chargement…</div>
+    </div>
+
+    <div id="communauteGroupsPane" style="display:none;text-align:center;color:var(--bv-muted);padding:40px 0">
+      Les groupes arrivent bientôt 🚧
+    </div>
+  </div>
+</div>
+
+<!-- Composer de post (#28) -->
+<div id="postComposerSheet" class="sheet-overlay">
+  <div class="sheet">
+    <h3 style="margin:0 0 12px">Nouveau post</h3>
+    <textarea id="postContentInput" placeholder="Raconte ton voyage…" style="width:100%;min-height:70px;border:1px solid var(--bv-border);border-radius:12px;padding:12px;font-family:inherit;font-size:14px;margin-bottom:10px;background:var(--bv-card);color:var(--bv-text)"></textarea>
+    <input type="file" id="postPhotoInput" accept="image/*" style="margin-bottom:12px">
+    <div id="postComposerError" style="color:var(--bv-bad);font-size:13px;margin-bottom:8px;display:none"></div>
+    <button id="postSubmitBtn" class="auth-submit" type="button">Publier</button>
+    <button id="postCancelBtn" class="sheet-secondary" type="button" style="width:100%;margin-top:10px">Annuler</button>
+  </div>
+</div>
+
+<!-- Navigation du bas (pilule flottante, mapping confirmé sur les 7 mockups du 25/11/2026) -->
 <nav id="bottomNav">
-  <button class="nav-item active" id="navMap"><span class="nav-icon">🗺️</span>Carte</button>
-  <button class="nav-item" id="navExplorer"><span class="nav-icon">🏞️</span>Explorer</button>
-  <button class="nav-item" id="navTrips"><span class="nav-icon">🧭</span>Mes trips</button>
-  <button class="nav-item" id="navAccount"><span class="nav-icon">👤</span>Compte</button>
+  <button class="nav-item active" id="navMap" type="button">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="17" cy="6" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M3 18l4.5-7 3 4 3.5-6 7 9H3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    <span class="nav-label">Carte</span>
+  </button>
+  <button class="nav-item" id="navExplorer" type="button">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="2"/><path d="M15 9l-1.8 4.8L8.6 15.6 10.4 10.8z" fill="currentColor" stroke="currentColor" stroke-width="0.6" stroke-linejoin="round"/></svg>
+    <span class="nav-label">Explorer</span>
+  </button>
+  <button class="nav-item" id="navCommunaute" type="button">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 4.5L21 19H3L12 4.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9.3 19v-4.2a2.7 2.7 0 0 1 5.4 0V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span class="nav-label">Communauté</span>
+  </button>
+  <button class="nav-item" id="navTrips" type="button">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 6h7l-2.2 3L19 12h-7" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    <span class="nav-label">Itinéraire</span>
+  </button>
+  <button class="nav-item" id="navAccount" type="button">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 3.6v5.1c0 4.8-3.3 8.4-8 9.3-4.7-.9-8-4.5-8-9.3V6.6L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="10.3" r="2.2" stroke="currentColor" stroke-width="1.8"/><path d="M8 17c0-2.2 1.8-3.4 4-3.4s4 1.2 4 3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span class="nav-label">Compte</span>
+  </button>
 </nav>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>

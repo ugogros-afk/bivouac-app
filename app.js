@@ -934,15 +934,17 @@ favModal.addEventListener('click', (e) => {
 // Le listener de clic sur favListEl (ouvrir/supprimer un favori) est attaché plus bas,
 // une fois renderFavList() définie, pour couvrir spots + lieux éditoriaux.
 
-// --- Navigation du bas (Carte / Explorer / Mes trips / Compte) ---
+// --- Navigation du bas (Carte / Explorer / Communauté / Itinéraire / Compte) ---
 const navMap = document.getElementById('navMap');
 const navExplorer = document.getElementById('navExplorer');
+const navCommunaute = document.getElementById('navCommunaute');
 const navTrips = document.getElementById('navTrips');
 const navAccount = document.getElementById('navAccount');
 
 function setActiveNav(which) {
   navMap.classList.toggle('active', which === 'map');
   navExplorer.classList.toggle('active', which === 'explorer');
+  navCommunaute.classList.toggle('active', which === 'communaute');
   navTrips.classList.toggle('active', which === 'trips');
   navAccount.classList.toggle('active', which === 'account');
 }
@@ -1034,6 +1036,7 @@ navMap.addEventListener('click', () => {
   closeTripsListModal();
   closeItineraryModal();
   closeExplorerModal();
+  closeCommunauteModal();
   closePoiDetail();
   setActiveNav('map');
 });
@@ -1041,6 +1044,7 @@ navAccount.addEventListener('click', () => {
   closeTripsListModal();
   closeItineraryModal();
   closeExplorerModal();
+  closeCommunauteModal();
   closePoiDetail();
   setActiveNav('account');
   openAccountModal();
@@ -1050,15 +1054,27 @@ navTrips.addEventListener('click', () => {
   closeAccountModal();
   closeItineraryModal();
   closeExplorerModal();
+  closeCommunauteModal();
   closePoiDetail();
   setActiveNav('trips');
   openTripsListModal();
+});
+navCommunaute.addEventListener('click', () => {
+  if (authGateActive) return;
+  closeAccountModal();
+  closeTripsListModal();
+  closeItineraryModal();
+  closeExplorerModal();
+  closePoiDetail();
+  setActiveNav('communaute');
+  openCommunauteModal();
 });
 navExplorer.addEventListener('click', () => {
   if (authGateActive) return;
   closeAccountModal();
   closeTripsListModal();
   closeItineraryModal();
+  closeCommunauteModal();
   closePoiDetail();
   setActiveNav('explorer');
   openExplorerModal();
@@ -1885,6 +1901,250 @@ function closeExplorerModal() {
 explorerBackBtn.addEventListener('click', () => { closeExplorerModal(); setActiveNav('map'); });
 explorerModal.addEventListener('click', (e) => { if (e.target === explorerModal) { closeExplorerModal(); setActiveNav('map'); } });
 explorerSearchInput.addEventListener('input', () => renderExplorer());
+
+// --- Communauté (#28) : amis, partage, fil de posts façon Strava ---
+const communauteModal = document.getElementById('communauteModal');
+const communauteClose = document.getElementById('communauteClose');
+const communauteTabFeed = document.getElementById('communauteTabFeed');
+const communauteTabGroups = document.getElementById('communauteTabGroups');
+const communauteFeedPane = document.getElementById('communauteFeedPane');
+const communauteGroupsPane = document.getElementById('communauteGroupsPane');
+const communauteFeedList = document.getElementById('communauteFeedList');
+const communauteShareBtn = document.getElementById('communauteShareBtn');
+const friendSearchInput = document.getElementById('friendSearchInput');
+const friendSearchResults = document.getElementById('friendSearchResults');
+const composePostBtn = document.getElementById('composePostBtn');
+const postComposerSheet = document.getElementById('postComposerSheet');
+const postContentInput = document.getElementById('postContentInput');
+const postPhotoInput = document.getElementById('postPhotoInput');
+const postComposerError = document.getElementById('postComposerError');
+const postSubmitBtn = document.getElementById('postSubmitBtn');
+const postCancelBtn = document.getElementById('postCancelBtn');
+
+let followingIds = new Set(); // ids des gens que je suis déjà, chargé à l'ouverture
+let profilesCache = {}; // user_id -> pseudo, pour afficher les auteurs de posts sans refaire une requête par post
+
+function openCommunauteModal() {
+  communauteModal.classList.add('show');
+  loadCommunityFeed();
+}
+function closeCommunauteModal() {
+  communauteModal.classList.remove('show');
+}
+communauteClose.addEventListener('click', () => { closeCommunauteModal(); setActiveNav('map'); });
+communauteModal.addEventListener('click', (e) => { if (e.target === communauteModal) { closeCommunauteModal(); setActiveNav('map'); } });
+
+communauteTabFeed.addEventListener('click', () => {
+  communauteTabFeed.classList.add('active'); communauteTabGroups.classList.remove('active');
+  communauteFeedPane.style.display = 'block'; communauteGroupsPane.style.display = 'none';
+});
+communauteTabGroups.addEventListener('click', () => {
+  communauteTabGroups.classList.add('active'); communauteTabFeed.classList.remove('active');
+  communauteFeedPane.style.display = 'none'; communauteGroupsPane.style.display = 'block';
+});
+
+communauteShareBtn.addEventListener('click', async () => {
+  const shareData = { title: 'Roamly', text: 'Je planifie mes road-trips et bivouacs avec Roamly, regarde :', url: 'https://bivouac-app-jade.vercel.app' };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) { /* annulé par l'utilisateur, rien à faire */ }
+  } else {
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      alert('Lien copié dans le presse-papiers !');
+    } catch (e) { alert(shareData.url); }
+  }
+});
+
+// Recherche d'amis par pseudo (#28)
+let friendSearchTimer = null;
+friendSearchInput.addEventListener('input', () => {
+  clearTimeout(friendSearchTimer);
+  const q = friendSearchInput.value.trim();
+  if (!q) { friendSearchResults.innerHTML = ''; return; }
+  friendSearchTimer = setTimeout(() => runFriendSearch(q), 300);
+});
+
+async function runFriendSearch(q) {
+  if (!sb) return;
+  const myId = await currentUserId();
+  const { data, error } = await sb.from('profiles').select('user_id, pseudo').ilike('pseudo', '%' + q + '%').limit(10);
+  if (error) { console.error(error); return; }
+  const results = (data || []).filter((p) => p.user_id !== myId);
+  if (!results.length) { friendSearchResults.innerHTML = '<p style="color:var(--bv-muted);font-size:13px">Aucun résultat.</p>'; return; }
+  friendSearchResults.innerHTML = results.map((p) =>
+    '<div class="friend-result-item"><span>' + escapeHtml(p.pseudo || 'Sans pseudo') + '</span>' +
+    '<button type="button" class="follow-btn' + (followingIds.has(p.user_id) ? ' following' : '') + '" data-uid="' + p.user_id + '">' +
+    (followingIds.has(p.user_id) ? 'Suivi(e)' : 'Suivre') + '</button></div>'
+  ).join('');
+  friendSearchResults.querySelectorAll('.follow-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.dataset.uid;
+      btn.disabled = true;
+      if (followingIds.has(uid)) {
+        const { error: delErr } = await sb.from('follows').delete().eq('follower_id', myId).eq('following_id', uid);
+        if (!delErr) { followingIds.delete(uid); btn.textContent = 'Suivre'; btn.classList.remove('following'); }
+      } else {
+        const { error: insErr } = await sb.from('follows').insert({ follower_id: myId, following_id: uid });
+        if (!insErr) { followingIds.add(uid); btn.textContent = 'Suivi(e)'; btn.classList.add('following'); }
+      }
+      btn.disabled = false;
+    });
+  });
+}
+
+// Composer un post (#28)
+composePostBtn.addEventListener('click', () => {
+  postContentInput.value = ''; postPhotoInput.value = '';
+  postComposerError.style.display = 'none';
+  postComposerSheet.classList.add('show');
+});
+postCancelBtn.addEventListener('click', () => postComposerSheet.classList.remove('show'));
+postComposerSheet.addEventListener('click', (e) => { if (e.target === postComposerSheet) postComposerSheet.classList.remove('show'); });
+
+postSubmitBtn.addEventListener('click', async () => {
+  if (!sb) return;
+  const content = postContentInput.value.trim();
+  const file = postPhotoInput.files[0];
+  if (!content && !file) {
+    postComposerError.textContent = 'Ajoute un texte ou une photo avant de publier.';
+    postComposerError.style.display = 'block';
+    return;
+  }
+  postSubmitBtn.disabled = true;
+  postSubmitBtn.textContent = 'Publication…';
+  try {
+    const myId = await currentUserId();
+    let photoUrls = [];
+    if (file) {
+      const uploadFile = await compressImageForUpload(file);
+      const ext = (uploadFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = 'posts/' + myId + '_' + Date.now() + '.' + ext;
+      const { error: upErr } = await sb.storage.from('photos').upload(path, uploadFile);
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from('photos').getPublicUrl(path);
+      photoUrls = [urlData.publicUrl];
+    }
+    const { error } = await sb.from('posts').insert({ user_id: myId, content: content || null, photo_urls: photoUrls });
+    if (error) throw error;
+    postComposerSheet.classList.remove('show');
+    await loadCommunityFeed();
+  } catch (e) {
+    console.error(e);
+    postComposerError.textContent = "Erreur lors de la publication. Réessaie.";
+    postComposerError.style.display = 'block';
+  } finally {
+    postSubmitBtn.disabled = false;
+    postSubmitBtn.textContent = 'Publier';
+  }
+});
+
+async function loadCommunityFeed() {
+  if (!sb) return;
+  communauteFeedList.innerHTML = 'Chargement…';
+  const myId = await currentUserId();
+
+  const { data: followRows } = await sb.from('follows').select('following_id').eq('follower_id', myId);
+  followingIds = new Set((followRows || []).map((f) => f.following_id));
+  const authorIds = Array.from(followingIds); if (myId) authorIds.push(myId);
+
+  const { data: posts, error } = await sb.from('posts').select('*').in('user_id', authorIds.length ? authorIds : ['00000000-0000-0000-0000-000000000000']).order('created_at', { ascending: false }).limit(30);
+  if (error) { console.error(error); communauteFeedList.innerHTML = '<p style="color:var(--bv-bad)">Impossible de charger le fil.</p>'; return; }
+
+  if (!posts || !posts.length) {
+    communauteFeedList.innerHTML = '<p style="color:var(--bv-muted);text-align:center;padding:30px 0">Pas encore de posts. Suis des amis ou partage ton premier voyage !</p>';
+    return;
+  }
+
+  // Auteurs : une requête groupée plutôt qu'une par post.
+  const neededIds = Array.from(new Set(posts.map((p) => p.user_id).filter((id) => !profilesCache[id])));
+  if (neededIds.length) {
+    const { data: authors } = await sb.from('profiles').select('user_id, pseudo').in('user_id', neededIds);
+    (authors || []).forEach((a) => { profilesCache[a.user_id] = a.pseudo; });
+  }
+
+  const postIds = posts.map((p) => p.id);
+  const { data: kudosRows } = await sb.from('post_kudos').select('post_id, user_id').in('post_id', postIds);
+  const kudosByPost = {};
+  (kudosRows || []).forEach((k) => { (kudosByPost[k.post_id] = kudosByPost[k.post_id] || []).push(k.user_id); });
+
+  communauteFeedList.innerHTML = posts.map((p) => feedPostHtml(p, kudosByPost[p.id] || [], myId)).join('');
+
+  communauteFeedList.querySelectorAll('.kudo-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const postId = btn.dataset.postId;
+      const isActive = btn.classList.contains('kudo-active');
+      btn.disabled = true;
+      if (isActive) {
+        await sb.from('post_kudos').delete().eq('post_id', postId).eq('user_id', myId);
+      } else {
+        await sb.from('post_kudos').insert({ post_id: postId, user_id: myId });
+      }
+      await loadCommunityFeed();
+    });
+  });
+  communauteFeedList.querySelectorAll('.comments-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => toggleComments(btn.dataset.postId));
+  });
+  communauteFeedList.querySelectorAll('.feed-post-comment-form').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      const content = input.value.trim();
+      if (!content) return;
+      await sb.from('post_comments').insert({ post_id: form.dataset.postId, user_id: myId, content });
+      input.value = '';
+      await renderComments(form.dataset.postId);
+    });
+  });
+}
+
+function feedPostHtml(p, kudoUserIds, myId) {
+  const author = profilesCache[p.user_id] || 'Un roamer';
+  const photo = Array.isArray(p.photo_urls) && p.photo_urls.length ? p.photo_urls[0] : null;
+  const stats = p.stats && typeof p.stats === 'object' ? p.stats : {};
+  let statsHtml = '';
+  if (stats.km) statsHtml += '<span>🛣️ ' + stats.km + ' km</span>';
+  if (stats.etapes) statsHtml += '<span>📍 ' + stats.etapes + ' étapes</span>';
+  if (stats.spots_favoris) statsHtml += '<span>⭐ ' + stats.spots_favoris + ' favoris</span>';
+  const iKudoed = kudoUserIds.includes(myId);
+  const date = new Date(p.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return '<div class="feed-post-card" data-post-id="' + p.id + '">' +
+    '<div class="feed-post-head"><span class="feed-post-author">' + escapeHtml(author) + '</span><span class="feed-post-date">' + date + '</span></div>' +
+    (p.content ? '<div class="feed-post-content">' + escapeHtml(p.content) + '</div>' : '') +
+    (photo ? '<img src="' + escapeAttr(wikimediaThumb(photo, 800)) + '" alt="" loading="lazy">' : '') +
+    (statsHtml ? '<div class="feed-post-stats">' + statsHtml + '</div>' : '') +
+    '<div class="feed-post-actions">' +
+      '<button type="button" class="kudo-btn' + (iKudoed ? ' kudo-active' : '') + '" data-post-id="' + p.id + '">👏 ' + kudoUserIds.length + '</button>' +
+      '<button type="button" class="comments-toggle" data-post-id="' + p.id + '">💬 Commentaires</button>' +
+    '</div>' +
+    '<div class="feed-post-comments" id="comments-' + p.id + '" style="display:none">' +
+      '<div class="feed-post-comment-list"></div>' +
+      '<form class="feed-post-comment-form" data-post-id="' + p.id + '"><input type="text" placeholder="Écrire un commentaire…" required><button type="submit">Envoyer</button></form>' +
+    '</div>' +
+  '</div>';
+}
+
+async function toggleComments(postId) {
+  const box = document.getElementById('comments-' + postId);
+  const nowShown = box.style.display === 'none';
+  box.style.display = nowShown ? 'block' : 'none';
+  if (nowShown) await renderComments(postId);
+}
+
+async function renderComments(postId) {
+  const box = document.getElementById('comments-' + postId);
+  const listEl = box.querySelector('.feed-post-comment-list');
+  const { data, error } = await sb.from('post_comments').select('user_id, content, created_at').eq('post_id', postId).order('created_at', { ascending: true });
+  if (error) { listEl.innerHTML = ''; return; }
+  const neededIds = Array.from(new Set((data || []).map((c) => c.user_id).filter((id) => !profilesCache[id])));
+  if (neededIds.length) {
+    const { data: authors } = await sb.from('profiles').select('user_id, pseudo').in('user_id', neededIds);
+    (authors || []).forEach((a) => { profilesCache[a.user_id] = a.pseudo; });
+  }
+  listEl.innerHTML = (data || []).map((c) =>
+    '<div class="feed-post-comment"><strong>' + escapeHtml(profilesCache[c.user_id] || 'Un roamer') + ' :</strong> ' + escapeHtml(c.content) + '</div>'
+  ).join('') || '<p style="color:var(--bv-muted);font-size:12.5px">Aucun commentaire pour l\'instant.</p>';
+}
 
 function poiGridHtml(list) {
   if (!list.length) return '<div class="explorer-empty">Aucun lieu dans cette catégorie.</div>';
