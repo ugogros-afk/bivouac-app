@@ -141,6 +141,23 @@
   .sheet-title { margin: 0 0 10px; padding-right: 30px; font-size: 16px; font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--bv-text); }
   .sheet-list { overflow-y: auto; flex: 1; margin-bottom: 10px; }
 
+  /* Ajouter un contact (#28) : champ de recherche avec icône intégrée + lignes de contact
+     importé (avatar rond en initiales, nom, numéro, bouton "Inviter"/"Invité ✓"). */
+  .contact-search-wrap { position: relative; }
+  .contact-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--bv-muted2); pointer-events: none; }
+  .contact-row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--bv-border); }
+  .contact-avatar {
+    width: 40px; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px; color: var(--bv-on-accent); flex-shrink: 0;
+  }
+  .contact-row-name { font-size: 14px; font-weight: 700; color: var(--bv-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contact-row-sub { font-size: 12px; color: var(--bv-muted2); }
+  .contact-invite-btn {
+    border: 1.4px solid var(--bv-text); border-radius: 999px; background: transparent; color: var(--bv-text);
+    font-size: 12px; font-weight: 700; padding: 7px 14px; flex-shrink: 0; font-family: inherit;
+  }
+  .contact-invite-btn.invited { background: var(--bv-text); color: var(--bv-on-accent); border-color: var(--bv-text); }
+
   /* Avis & photos */
   #avisStars { font-size: 28px; margin-bottom: 10px; letter-spacing: 4px; }
   #avisStars .star { color: rgba(38,61,53,.18); cursor: pointer; }
@@ -219,12 +236,14 @@
     display: block; text-align: center; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
     color: var(--bv-muted); margin: 14px 0 6px; font-weight: 600;
   }
-  #accountModal .account-input {
+  /* Généralisé le 27/11/2026 (était scopé à #accountModal par erreur, ce qui laissait les
+     champs "Rechercher un pseudo"/"Rechercher un contact" sans aucun style ailleurs). */
+  .account-input {
     width: 100%; border: 1px solid var(--bv-border); border-radius: 12px; padding: 13px;
     font-size: 15px; font-family: inherit; background: rgba(38,61,53,.04); color: var(--bv-text);
     text-align: center;
   }
-  #accountModal .account-input::placeholder { color: var(--bv-muted2); }
+  .account-input::placeholder { color: var(--bv-muted2); }
   .auth-forgot { display: block; width: 100%; text-align: center; font-size: 13px; color: var(--bv-link); margin: 8px 0 4px; background: none; border: none; padding: 0; }
   .auth-oauth-logo { width: 18px; height: 18px; flex-shrink: 0; }
   .auth-submit {
@@ -762,17 +781,44 @@
   </div>
 </div>
 
-<!-- Ajouter des amis (#28) : popup ouverte par les boutons 🔍/➕ du header Communauté
-     (demande utilisateur du 27/11/2026 : un clic doit ouvrir une pop-up, pas juste un champ
-     qui apparaît en place) : partager l'app à ses contacts, ou chercher un pseudo existant. -->
+<!-- Rechercher des amis (#28) : popup ouverte par le bouton 🔍 du header Communauté, pour
+     chercher un compte Roamly existant par pseudo et le suivre. -->
 <div id="addFriendModal" class="sheet-overlay">
   <div class="sheet">
     <button id="addFriendClose" class="sheet-close">✕</button>
-    <h3 class="sheet-title">Ajouter des amis</h3>
-    <button id="addFriendShareBtn" class="auth-submit" type="button" style="margin-bottom:16px">↗ Partager l'app à mes contacts</button>
+    <h3 class="sheet-title">Rechercher des amis</h3>
     <div style="position:relative">
       <input type="text" id="friendSearchInput" class="account-input" style="text-align:left" placeholder="Rechercher un pseudo à suivre…" autocomplete="off">
       <div id="friendSearchResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Ajouter un contact (#28, mockup Communaute-popup-ajout-contact.html, demande du 27/11/2026) :
+     popup ouverte par le bouton ➕ du header Communauté. Importe les contacts du téléphone via
+     l'API Contact Picker (navigator.contacts.select) — c'est cet appel lui-même qui déclenche
+     l'écran d'autorisation natif du navigateur/OS, où la personne choisit explicitement quels
+     contacts partager (aucune permission custom à construire, l'OS s'en charge). Un contact
+     "ajouté" reçoit une invitation par SMS (lien sms: pré-rempli vers son numéro) : on ne peut
+     pas savoir s'il a déjà un compte Roamly (aucun numéro de téléphone stocké côté profils),
+     donc pas de "suivi" automatique, juste une invitation directe à télécharger l'app.
+     Navigateur sans Contact Picker (Safari iOS, desktop) : repli sur le partage générique. -->
+<div id="addContactModal" class="sheet-overlay">
+  <div class="sheet">
+    <button id="addContactClose" class="sheet-close">✕</button>
+    <h3 class="sheet-title">Ajouter un contact</h3>
+    <div id="addContactUnsupported" style="display:none;text-align:center;padding:10px 4px 16px">
+      <p style="font-size:13.5px;color:var(--bv-muted);margin:0 0 14px">Ton navigateur ne permet pas d'importer tes contacts directement. Tu peux quand même inviter tes proches en partageant l'app.</p>
+      <button id="addContactShareFallbackBtn" class="auth-submit" type="button">↗ Partager l'app</button>
+    </div>
+    <div id="addContactSupported" style="display:none;flex-direction:column;overflow:hidden;flex:1;min-height:0">
+      <button id="importContactsBtn" class="auth-submit" type="button" style="margin-bottom:14px;flex-shrink:0">📇 Importer mes contacts</button>
+      <div class="contact-search-wrap" style="flex-shrink:0;margin-bottom:4px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="contact-search-icon"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="text" id="contactSearchInput" class="account-input" style="text-align:left;padding-left:40px" placeholder="Nom ou numéro…" autocomplete="off">
+      </div>
+      <div id="contactResultsList" class="sheet-list"></div>
+      <div id="contactEmptyState" style="display:none;text-align:center;padding:30px 24px;color:var(--bv-muted2);font-size:13.5px">Touche "Importer mes contacts" pour commencer.</div>
     </div>
   </div>
 </div>

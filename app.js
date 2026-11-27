@@ -2145,9 +2145,17 @@ const communauteSearchToggleBtn = document.getElementById('communauteSearchToggl
 const communauteAddFriendBtn = document.getElementById('communauteAddFriendBtn');
 const addFriendModal = document.getElementById('addFriendModal');
 const addFriendClose = document.getElementById('addFriendClose');
-const addFriendShareBtn = document.getElementById('addFriendShareBtn');
 const friendSearchInput = document.getElementById('friendSearchInput');
 const friendSearchResults = document.getElementById('friendSearchResults');
+const addContactModal = document.getElementById('addContactModal');
+const addContactClose = document.getElementById('addContactClose');
+const addContactSupported = document.getElementById('addContactSupported');
+const addContactUnsupported = document.getElementById('addContactUnsupported');
+const addContactShareFallbackBtn = document.getElementById('addContactShareFallbackBtn');
+const importContactsBtn = document.getElementById('importContactsBtn');
+const contactSearchInput = document.getElementById('contactSearchInput');
+const contactResultsList = document.getElementById('contactResultsList');
+const contactEmptyState = document.getElementById('contactEmptyState');
 const composePostBtn = document.getElementById('composePostBtn');
 const postComposerSheet = document.getElementById('postComposerSheet');
 const postContentInput = document.getElementById('postContentInput');
@@ -2169,11 +2177,8 @@ function closeCommunauteModal() {
 communauteClose.addEventListener('click', () => { closeCommunauteModal(); setActiveNav('map'); });
 communauteModal.addEventListener('click', (e) => { if (e.target === communauteModal) { closeCommunauteModal(); setActiveNav('map'); } });
 
-// Boutons "Rechercher des amis" / "Ajouter des amis" du header (#28, mockup Communaute.html) :
-// les deux ouvrent la même pop-up "Ajouter des amis" (retour utilisateur du 27/11/2026 : un clic
-// doit ouvrir une vraie pop-up, pas juste faire apparaître un champ en place), qui propose soit de
-// partager l'app à ses contacts (même action que communauteShareBtn), soit de chercher un pseudo
-// existant dans la base.
+// Bouton 🔍 "Rechercher des amis" (#28) : pop-up de recherche par pseudo parmi les comptes
+// Roamly existants (mockup Communaute.html).
 function openAddFriendModal() {
   addFriendModal.classList.add('show');
   friendSearchInput.focus();
@@ -2184,10 +2189,110 @@ function closeAddFriendModal() {
   friendSearchResults.innerHTML = '';
 }
 communauteSearchToggleBtn.addEventListener('click', openAddFriendModal);
-communauteAddFriendBtn.addEventListener('click', openAddFriendModal);
 addFriendClose.addEventListener('click', closeAddFriendModal);
 addFriendModal.addEventListener('click', (e) => { if (e.target === addFriendModal) closeAddFriendModal(); });
-addFriendShareBtn.addEventListener('click', () => shareApp());
+
+// Bouton ➕ "Ajouter un contact" (#28, mockup Communaute-popup-ajout-contact.html, demande du
+// 27/11/2026) : importe les contacts du téléphone via l'API Contact Picker — navigator.contacts
+// .select() déclenche lui-même l'écran d'autorisation natif de l'OS/navigateur, où la personne
+// choisit explicitement quels contacts partager (c'est l'"autorisation" demandée, rien à
+// construire côté app). On ne peut pas savoir si un contact a déjà un compte Roamly (aucun
+// numéro de téléphone stocké côté profils) : "Inviter" ouvre juste un SMS pré-rempli vers son
+// numéro, pas un "suivi" automatique. API absente (Safari iOS, desktop) : repli sur le partage
+// générique de l'app.
+const contactPickerSupported = !!(navigator.contacts && navigator.contacts.select && window.ContactsManager);
+let importedContacts = []; // { name, tel }, conservé tant que la session reste ouverte
+
+function initialsOf(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+const CONTACT_AVATAR_COLORS = ['#D9CBB5', '#6F8874', '#D98558', '#93A295', '#263D35', '#5B6B61'];
+function colorForContact(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return CONTACT_AVATAR_COLORS[h % CONTACT_AVATAR_COLORS.length];
+}
+
+function renderContactResults(list) {
+  contactResultsList.innerHTML = '';
+  if (!importedContacts.length) {
+    contactEmptyState.style.display = 'block';
+    contactEmptyState.textContent = 'Touche « Importer mes contacts » pour commencer.';
+    return;
+  }
+  if (!list.length) {
+    contactEmptyState.style.display = 'block';
+    contactEmptyState.textContent = 'Aucun contact ne correspond à cette recherche.';
+    return;
+  }
+  contactEmptyState.style.display = 'none';
+  list.forEach((c) => {
+    const row = document.createElement('div');
+    row.className = 'contact-row';
+    row.innerHTML =
+      '<div class="contact-avatar" style="background:' + colorForContact(c.name) + '">' + escapeHtml(initialsOf(c.name)) + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="contact-row-name">' + escapeHtml(c.name) + '</div>' +
+        '<div class="contact-row-sub">' + escapeHtml(c.tel || '') + '</div>' +
+      '</div>' +
+      '<button type="button" class="contact-invite-btn">Inviter</button>';
+    const btn = row.querySelector('.contact-invite-btn');
+    btn.addEventListener('click', () => {
+      if (c.tel) {
+        const msg = encodeURIComponent('Salut ! Je planifie mes road-trips et bivouacs avec Roamly, regarde : https://bivouac-app-jade.vercel.app');
+        window.location.href = 'sms:' + encodeURIComponent(c.tel) + '?&body=' + msg;
+      }
+      btn.classList.add('invited');
+      btn.textContent = 'Invité ✓';
+    });
+    contactResultsList.appendChild(row);
+  });
+}
+
+importContactsBtn.addEventListener('click', async () => {
+  try {
+    importContactsBtn.disabled = true;
+    importContactsBtn.textContent = 'Import en cours…';
+    const picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+    importedContacts = picked
+      .map((p) => ({ name: (p.name && p.name[0]) || 'Contact', tel: (p.tel && p.tel[0]) || '' }))
+      .filter((c) => c.tel);
+    contactSearchInput.value = '';
+    renderContactResults(importedContacts);
+  } catch (e) {
+    // Annulé par la personne ou refusé par l'OS — rien à faire, pas une erreur applicative.
+  } finally {
+    importContactsBtn.disabled = false;
+    importContactsBtn.textContent = '📇 Importer mes contacts';
+  }
+});
+contactSearchInput.addEventListener('input', () => {
+  const q = contactSearchInput.value.trim().toLowerCase();
+  const filtered = !q ? importedContacts : importedContacts.filter((c) =>
+    c.name.toLowerCase().includes(q) || c.tel.includes(q));
+  renderContactResults(filtered);
+});
+
+function openAddContactModal() {
+  addContactModal.classList.add('show');
+  if (contactPickerSupported) {
+    addContactSupported.style.display = 'flex';
+    addContactUnsupported.style.display = 'none';
+    renderContactResults(importedContacts);
+  } else {
+    addContactSupported.style.display = 'none';
+    addContactUnsupported.style.display = 'block';
+  }
+}
+function closeAddContactModal() {
+  addContactModal.classList.remove('show');
+}
+communauteAddFriendBtn.addEventListener('click', openAddContactModal);
+addContactClose.addEventListener('click', closeAddContactModal);
+addContactModal.addEventListener('click', (e) => { if (e.target === addContactModal) closeAddContactModal(); });
+addContactShareFallbackBtn.addEventListener('click', () => shareApp());
 
 communauteTabFeed.addEventListener('click', () => {
   communauteTabFeed.classList.add('active'); communauteTabGroups.classList.remove('active');
