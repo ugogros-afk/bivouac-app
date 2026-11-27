@@ -1526,27 +1526,55 @@ function formatDuration(min) {
 // parmi les spots officiels + communautaires déjà chargés en mémoire, ceux dont la distance
 // minimale à la route reste sous un seuil. Le "détour" affiché est une approximation
 // (aller-retour depuis le point le plus proche de la route), pas un calcul d'itinéraire exact.
+//
+// Répartition le long du trajet (fix du 27/11/2026) : un simple tri global par distance de
+// détour favorisait systématiquement les zones les plus denses en spots (souvent juste autour
+// du point de départ), donc sur un long trajet (ex. 440 km) les 4 suggestions se retrouvaient
+// toutes à côté de l'étape de départ, sans aucune option pour s'arrêter plus loin. On découpe
+// maintenant la route en `max` tronçons égaux (par distance cumulée) et on garde le meilleur
+// candidat de chaque tronçon, pour avoir des arrêts possibles répartis sur toute la distance.
 function suggestSpotsAlongRoute(routeCoords, max) {
   if (!routeCoords || !routeCoords.length) return [];
-  const step = Math.max(1, Math.floor(routeCoords.length / 40));
+  max = max || 4;
+  const step = Math.max(1, Math.floor(routeCoords.length / 80));
   const sampled = [];
   for (let i = 0; i < routeCoords.length; i += step) sampled.push(routeCoords[i]);
+  if (sampled[sampled.length - 1] !== routeCoords[routeCoords.length - 1]) {
+    sampled.push(routeCoords[routeCoords.length - 1]);
+  }
+
+  // Distance cumulée le long de la route à chaque point échantillonné, pour situer chaque
+  // candidat sur le trajet (pas juste "proche de la route", mais "proche à quel kilomètre").
+  const cumKm = [0];
+  for (let i = 1; i < sampled.length; i++) {
+    const [lon1, lat1] = sampled[i - 1], [lon2, lat2] = sampled[i];
+    cumKm.push(cumKm[i - 1] + haversineKm(lat1, lon1, lat2, lon2));
+  }
+  const totalKm = cumKm[cumKm.length - 1] || 1;
+  const bucketKm = totalKm / max;
 
   const candidates = officialSpotsRaw.concat(communitySpotsRaw);
-  const found = [];
+  const bestPerBucket = new Array(max).fill(null);
   for (const s of candidates) {
     const [lat, lon, name, cls] = s;
     if (!name) continue;
     let minDist = Infinity;
-    for (const [rlon, rlat] of sampled) {
+    let atKm = 0;
+    for (let i = 0; i < sampled.length; i++) {
+      const [rlon, rlat] = sampled[i];
       const d = haversineKm(lat, lon, rlat, rlon);
-      if (d < minDist) minDist = d;
-      if (minDist < 0.3) break; // assez proche, inutile de continuer
+      if (d < minDist) { minDist = d; atKm = cumKm[i]; }
     }
-    if (minDist <= 6) found.push({ lat, lon, name, cls, detourKm: minDist * 2 });
+    if (minDist > 6) continue;
+    let bucket = Math.floor(atKm / bucketKm);
+    if (bucket >= max) bucket = max - 1;
+    if (bucket < 0) bucket = 0;
+    const candidate = { lat, lon, name, cls, detourKm: minDist * 2, atKm };
+    if (!bestPerBucket[bucket] || candidate.detourKm < bestPerBucket[bucket].detourKm) {
+      bestPerBucket[bucket] = candidate;
+    }
   }
-  found.sort((a, b) => a.detourKm - b.detourKm);
-  return found.slice(0, max || 4);
+  return bestPerBucket.filter(Boolean).sort((a, b) => a.atKm - b.atKm);
 }
 
 // --- Mes itinéraires (liste) ---
