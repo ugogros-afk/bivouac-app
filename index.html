@@ -427,17 +427,43 @@
   .itin-add-step-form button {
     background: var(--bv-accent); color: var(--bv-on-accent); border: none; border-radius: 10px; padding: 0 14px; font-size: 13px; font-weight: 700;
   }
+  /* "Mes itinéraires" (mockup MesItineraires-liste-creation.html, demande du 27/11/2026) :
+     cartes de voyage (icône par type, "Départ → Arrivée", "Type · Dates · N étapes") et gros
+     bouton "+" rond pour l'état vide, au lieu du simple texte "trips-empty" précédent. */
   .trip-card {
-    display: flex; gap: 12px; padding: 12px; border-radius: 14px; background: var(--bv-card);
-    border: 1px solid var(--bv-border); margin-bottom: 12px; text-align: left; width: 100%; color: var(--bv-text);
+    display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 18px; background: var(--bv-surface-raised);
+    border: none; box-shadow: var(--bv-shadow-card); margin-bottom: 14px; text-align: left; width: 100%; color: var(--bv-text);
     font-family: inherit; cursor: pointer;
   }
-  .trip-card-thumb { width: 64px; height: 64px; border-radius: 10px; flex-shrink: 0; background: var(--bv-surface-alt); }
-  .trip-card-body { flex: 1; display: flex; flex-direction: column; gap: 4px; justify-content: center; min-width: 0; }
-  .trip-card-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .trip-card-sub { font-size: 11.5px; color: var(--bv-muted); }
-  .trip-card-chevron { display: flex; align-items: center; color: var(--bv-muted); flex-shrink: 0; }
+  .trip-card-thumb { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; background: var(--bv-surface-alt); display: flex; align-items: center; justify-content: center; }
+  .trip-card-body { flex: 1; display: flex; flex-direction: column; gap: 2px; justify-content: center; min-width: 0; }
+  .trip-card-title { font-size: 14.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trip-card-sub { font-size: 12px; color: var(--bv-muted2); }
+  .trip-card-chevron { display: flex; align-items: center; color: var(--bv-muted2); flex-shrink: 0; }
   .trips-empty { text-align: center; color: var(--bv-muted); font-size: 13px; padding: 40px 10px; }
+  .trips-empty-big {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 40px; text-align: center; gap: 22px;
+  }
+  .trips-empty-big-btn {
+    width: 92px; height: 92px; border-radius: 999px; background: var(--bv-gradient); border: none;
+    display: flex; align-items: center; justify-content: center; box-shadow: var(--bv-shadow-button); flex-shrink: 0;
+  }
+  .trips-empty-big-title { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; margin-bottom: 6px; color: var(--bv-text); }
+  .trips-empty-big-sub { font-size: 13.5px; color: var(--bv-muted2); line-height: 1.5; }
+
+  /* Pop-up "Nouveau voyage" : formulaire de création (ville départ/arrivée, type de séjour,
+     dates) avant d'arriver dans l'éditeur d'itinéraire existant (mini-carte, suggestions...). */
+  .field-label { font-size: 12px; font-weight: 700; color: var(--bv-muted); margin-bottom: 6px; display: block; }
+  .sejour-type-row { display: flex; background: var(--bv-card); border-radius: 999px; padding: 4px; margin-bottom: 18px; gap: 2px; }
+  .sejour-type-btn {
+    flex: 1; border: none; background: transparent; color: var(--bv-muted); font-size: 12.5px; font-weight: 600;
+    padding: 10px 4px; border-radius: 999px; font-family: inherit;
+  }
+  .sejour-type-btn.active { background: var(--bv-accent); color: var(--bv-on-accent); }
+  .trip-date-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .trip-date-row .account-input { text-align: left; }
+  .itinerary-meta-sub { font-size: 12px; color: var(--bv-muted); margin: -8px 0 10px 2px; }
 
   /* Favoris */
   .fav-item {
@@ -955,7 +981,53 @@
     <span class="app-page-title">Mes itinéraires</span>
     <button id="tripsNewBtn" class="app-page-add-btn" aria-label="Nouvel itinéraire">+</button>
   </div>
+  <!-- État vide (mockup MesItineraires-liste-creation.html) : gros bouton "+" rond au centre,
+       au lieu du simple texte précédent. -->
+  <div id="tripsEmptyBig" class="trips-empty-big" style="display:none">
+    <button type="button" id="tripsEmptyBigBtn" class="trips-empty-big-btn" aria-label="Créer mon itinéraire">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19" stroke="var(--bv-on-accent)" stroke-width="2.6" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="var(--bv-on-accent)" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </button>
+    <div>
+      <div class="trips-empty-big-title">Créer mon itinéraire</div>
+      <div class="trips-empty-big-sub">Bivouac, camping-car ou road trip —<br>touche le bouton pour planifier ton prochain voyage.</div>
+    </div>
+  </div>
   <div id="tripsList" class="app-page-scroll"></div>
+</div>
+
+<!-- Nouveau voyage : formulaire de création (mockup MesItineraires-liste-creation.html, demande
+     du 27/11/2026) — ville de départ/arrivée, type de séjour, dates, avant d'arriver dans
+     l'éditeur d'itinéraire existant (mini-carte, suggestions réparties, Optimiser...). -->
+<div id="newTripModal" class="sheet-overlay">
+  <div class="sheet">
+    <button id="newTripClose" class="sheet-close">✕</button>
+    <h3 class="sheet-title">Nouveau voyage</h3>
+    <div class="sheet-list">
+      <span class="field-label">Ville de départ</span>
+      <div style="position:relative;margin-bottom:16px">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:999px;background:var(--bv-text)"></span>
+        <input id="newTripStartCity" class="account-input" style="text-align:left;padding-left:32px" type="text" placeholder="Ex. Marseille">
+      </div>
+      <span class="field-label">Ville d'arrivée</span>
+      <div style="position:relative;margin-bottom:20px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="position:absolute;left:12px;top:50%;transform:translateY(-50%)"><path d="M12 21s-7-5-7-11a7 7 0 0 1 14 0c0 6-7 11-7 11z" stroke="var(--bv-accent-warm)" stroke-width="2.4"/></svg>
+        <input id="newTripEndCity" class="account-input" style="text-align:left;padding-left:32px" type="text" placeholder="Ex. Nice">
+      </div>
+      <span class="field-label">Type de séjour</span>
+      <div class="sejour-type-row">
+        <button type="button" class="sejour-type-btn active" data-type="Bivouac tente">Bivouac tente</button>
+        <button type="button" class="sejour-type-btn" data-type="Camping-car">Camping-car</button>
+        <button type="button" class="sejour-type-btn" data-type="Les deux">Les deux</button>
+      </div>
+      <span class="field-label">Dates</span>
+      <div class="trip-date-row">
+        <input id="newTripDateStart" class="account-input" type="date" style="flex:1">
+        <input id="newTripDateEnd" class="account-input" type="date" style="flex:1">
+      </div>
+      <div id="newTripError" style="display:none;color:var(--bv-bad);font-size:12.5px;margin-bottom:10px"></div>
+      <button type="button" id="newTripSubmitBtn" class="auth-submit">Créer l'itinéraire · choisir les étapes</button>
+    </div>
+  </div>
 </div>
 
 <!-- Mon itinéraire (édition) -->
@@ -964,6 +1036,10 @@
     <button id="itineraryBackBtn" class="app-page-back" aria-label="Retour">←</button>
     <input id="itineraryNameInput" class="itinerary-name-input" value="Mon itinéraire" maxlength="60">
   </div>
+  <!-- Type de séjour + dates (mockup MesItineraires-liste-creation.html) : affichage seul, pas
+       modifiable après la création (cohérent avec le mockup, qui ne propose pas de les changer
+       une fois le voyage créé). -->
+  <div id="itineraryMetaSub" class="itinerary-meta-sub" style="display:none;padding-left:16px"></div>
   <div class="itin-minimap-wrap">
     <div id="itinMinimap" class="itin-minimap"></div>
   </div>

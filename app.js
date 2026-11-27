@@ -1581,6 +1581,8 @@ function suggestSpotsAlongRoute(routeCoords, max) {
 const tripsListModal = document.getElementById('tripsListModal');
 const tripsListEl = document.getElementById('tripsList');
 const tripsNewBtn = document.getElementById('tripsNewBtn');
+const tripsEmptyBig = document.getElementById('tripsEmptyBig');
+const tripsEmptyBigBtn = document.getElementById('tripsEmptyBigBtn');
 
 function openTripsListModal() {
   tripsListModal.classList.add('show');
@@ -1590,32 +1592,47 @@ function closeTripsListModal() {
   tripsListModal.classList.remove('show');
 }
 
+// Icône par type de séjour (card #34, mêmes tracés que le mockup MesItineraires-liste-creation.html).
+function tripTypeIcon(type) {
+  if (type === 'Camping-car') {
+    return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 16V9a2 2 0 0 1 2-2h8l5 4v5" stroke="var(--bv-text)" stroke-width="1.8" stroke-linejoin="round"/><circle cx="7.5" cy="17.5" r="2" stroke="var(--bv-text)" stroke-width="1.8"/><circle cx="17.5" cy="17.5" r="2" stroke="var(--bv-text)" stroke-width="1.8"/><path d="M3 16h2.5M19.5 16H21v-3" stroke="var(--bv-text)" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  }
+  return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 4.5L21 19H3L12 4.5z" stroke="var(--bv-text)" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.3 19v-4.2a2.7 2.7 0 0 1 5.4 0V19" stroke="var(--bv-text)" stroke-width="1.8" stroke-linecap="round"/></svg>';
+}
+
 async function loadTripsList() {
   if (!sb) return;
+  tripsEmptyBig.style.display = 'none';
+  tripsListEl.style.display = 'block';
   tripsListEl.innerHTML = '<div class="trips-empty">Chargement…</div>';
   try {
     const userId = await currentUserId();
     if (!userId) { tripsListEl.innerHTML = '<div class="trips-empty">Connecte-toi pour voir tes itinéraires.</div>'; return; }
-    const { data: trips, error } = await sb.from('trips').select('id, name, created_at').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data: trips, error } = await sb.from('trips').select('id, name, type_sejour, date_start, date_end, created_at').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) throw error;
     if (!trips.length) {
-      tripsListEl.innerHTML = '<div class="trips-empty">Aucun itinéraire pour l\'instant.<br>Touche le bouton + pour créer le premier.</div>';
+      tripsListEl.style.display = 'none';
+      tripsEmptyBig.style.display = 'flex';
       return;
     }
-    const { data: stops } = await sb.from('trip_stops').select('trip_id');
-    const countByTrip = {};
-    (stops || []).forEach((s) => { countByTrip[s.trip_id] = (countByTrip[s.trip_id] || 0) + 1; });
+    const { data: stops } = await sb.from('trip_stops').select('trip_id, name, position_order').order('position_order', { ascending: true });
+    const stopsByTrip = {};
+    (stops || []).forEach((s) => { (stopsByTrip[s.trip_id] = stopsByTrip[s.trip_id] || []).push(s); });
 
     tripsListEl.innerHTML = '';
     trips.forEach((t) => {
+      const tStops = stopsByTrip[t.id] || [];
+      const n = tStops.length;
+      const title = n >= 2 ? (tStops[0].name + ' → ' + tStops[n - 1].name) : t.name;
+      const dates = (t.date_start && t.date_end) ? (formatTripDate(t.date_start) + ' — ' + formatTripDate(t.date_end)) : 'Dates à définir';
+      const subParts = [t.type_sejour || null, t.type_sejour ? dates : null, n + (n > 1 ? ' étapes' : ' étape')].filter(Boolean);
       const card = document.createElement('button');
       card.className = 'trip-card';
-      const n = countByTrip[t.id] || 0;
       card.innerHTML =
-        '<div class="trip-card-thumb"></div>' +
+        '<div class="trip-card-thumb">' + tripTypeIcon(t.type_sejour) + '</div>' +
         '<div class="trip-card-body">' +
-          '<span class="trip-card-title">' + escapeHtml(t.name) + '</span>' +
-          '<span class="trip-card-sub">' + n + (n > 1 ? ' étapes' : ' étape') + '</span>' +
+          '<span class="trip-card-title">' + escapeHtml(title) + '</span>' +
+          '<span class="trip-card-sub">' + escapeHtml(subParts.join(' · ')) + '</span>' +
         '</div>' +
         '<div class="trip-card-chevron">›</div>';
       card.addEventListener('click', () => {
@@ -1630,11 +1647,94 @@ async function loadTripsList() {
 }
 
 tripsNewBtn.addEventListener('click', () => {
-  closeTripsListModal();
-  openItineraryModal(null);
+  openNewTripModal();
+});
+tripsEmptyBigBtn.addEventListener('click', () => {
+  openNewTripModal();
 });
 tripsListModal.addEventListener('click', (e) => {
   if (e.target === tripsListModal) { closeTripsListModal(); setActiveNav('map'); }
+});
+
+// --- Nouveau voyage (card #34, mockup MesItineraires-liste-creation.html) ---
+// Formulaire de création avant d'arriver dans l'éditeur d'itinéraire existant : géocode la ville
+// de départ et d'arrivée (réutilise geocodeAddress(), déjà utilisée pour la recherche de ville sur
+// la carte) pour pré-remplir les deux premières étapes, garde le type de séjour + les dates en
+// mémoire jusqu'à l'enregistrement (voir openItineraryModal()/itinerarySaveBtn).
+const newTripModal = document.getElementById('newTripModal');
+const newTripClose = document.getElementById('newTripClose');
+const newTripStartCity = document.getElementById('newTripStartCity');
+const newTripEndCity = document.getElementById('newTripEndCity');
+const newTripDateStart = document.getElementById('newTripDateStart');
+const newTripDateEnd = document.getElementById('newTripDateEnd');
+const newTripSubmitBtn = document.getElementById('newTripSubmitBtn');
+const newTripError = document.getElementById('newTripError');
+const sejourTypeBtns = document.querySelectorAll('.sejour-type-btn');
+let selectedSejourType = 'Bivouac tente';
+
+sejourTypeBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    sejourTypeBtns.forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedSejourType = btn.dataset.type;
+  });
+});
+
+function openNewTripModal() {
+  newTripStartCity.value = '';
+  newTripEndCity.value = '';
+  newTripDateStart.value = '';
+  newTripDateEnd.value = '';
+  newTripError.style.display = 'none';
+  sejourTypeBtns.forEach((b) => b.classList.remove('active'));
+  sejourTypeBtns[0].classList.add('active');
+  selectedSejourType = sejourTypeBtns[0].dataset.type;
+  newTripModal.classList.add('show');
+  setTimeout(() => newTripStartCity.focus(), 200);
+}
+function closeNewTripModal() {
+  newTripModal.classList.remove('show');
+}
+newTripClose.addEventListener('click', closeNewTripModal);
+newTripModal.addEventListener('click', (e) => { if (e.target === newTripModal) closeNewTripModal(); });
+
+newTripSubmitBtn.addEventListener('click', async () => {
+  const startQ = newTripStartCity.value.trim();
+  const endQ = newTripEndCity.value.trim();
+  newTripError.style.display = 'none';
+  if (!startQ || !endQ) {
+    newTripError.textContent = 'Indique une ville de départ et d\'arrivée.';
+    newTripError.style.display = 'block';
+    return;
+  }
+  newTripSubmitBtn.disabled = true;
+  newTripSubmitBtn.textContent = 'Recherche des villes…';
+  try {
+    const [start, end] = await Promise.all([geocodeAddress(startQ), geocodeAddress(endQ)]);
+    if (!start || !end) {
+      newTripError.textContent = 'Ville introuvable (' + (!start ? startQ : endQ) + '). Vérifie l\'orthographe.';
+      newTripError.style.display = 'block';
+      return;
+    }
+    closeNewTripModal();
+    closeTripsListModal();
+    openItineraryModal(null, {
+      stops: [
+        { name: start.label, lat: start.lat, lon: start.lon },
+        { name: end.label, lat: end.lat, lon: end.lon }
+      ],
+      name: startQ + ' → ' + endQ,
+      type: selectedSejourType,
+      dateStart: newTripDateStart.value || null,
+      dateEnd: newTripDateEnd.value || null
+    });
+  } catch (e) {
+    newTripError.textContent = 'Recherche indisponible (problème réseau).';
+    newTripError.style.display = 'block';
+  } finally {
+    newTripSubmitBtn.disabled = false;
+    newTripSubmitBtn.textContent = "Créer l'itinéraire · choisir les étapes";
+  }
 });
 
 // --- Mon itinéraire (édition d'un trip) ---
@@ -1655,19 +1755,52 @@ let tripSegmentsCache = {}; // clé "i" -> { distanceKm, durationMin, coords, su
 // champ "nuits" par étape -> compteur global, en mémoire seulement (non persisté en base), initialisé
 // au nombre d'étapes - 1. Simplification assumée, à affiner si on ajoute un vrai champ nights plus tard.
 let plannedNights = 0;
+// Type de séjour + dates (card #34, "Nouveau voyage") : affichage seul dans l'éditeur, pas de
+// vrai champ modifiable après création (cohérent avec le mockup). Persistés à l'enregistrement.
+let currentTripType = null;
+let currentTripDateStart = null;
+let currentTripDateEnd = null;
+const itineraryMetaSub = document.getElementById('itineraryMetaSub');
 
-function openItineraryModal(tripId) {
+function formatTripDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return day + '/' + m;
+}
+function renderItineraryMetaSub() {
+  const parts = [];
+  if (currentTripType) parts.push(currentTripType);
+  if (currentTripDateStart && currentTripDateEnd) {
+    parts.push(formatTripDate(currentTripDateStart) + ' — ' + formatTripDate(currentTripDateEnd));
+  } else if (currentTripType) {
+    parts.push('Dates à définir');
+  }
+  if (parts.length) {
+    itineraryMetaSub.textContent = parts.join(' · ');
+    itineraryMetaSub.style.display = 'block';
+  } else {
+    itineraryMetaSub.style.display = 'none';
+  }
+}
+
+// prefill (optionnel, depuis la pop-up "Nouveau voyage") : { stops, name, type, dateStart, dateEnd }
+function openItineraryModal(tripId, prefill) {
   currentTripId = tripId;
-  tripStops = [];
+  tripStops = (prefill && prefill.stops) || [];
   tripSegmentsCache = {};
   plannedNights = 0;
-  itineraryNameInput.value = 'Mon itinéraire';
+  currentTripType = (prefill && prefill.type) || null;
+  currentTripDateStart = (prefill && prefill.dateStart) || null;
+  currentTripDateEnd = (prefill && prefill.dateEnd) || null;
+  itineraryNameInput.value = (prefill && prefill.name) || 'Mon itinéraire';
+  renderItineraryMetaSub();
   itinerarySaveStatus.textContent = '';
   itineraryModal.classList.add('show');
   if (tripId) {
     loadTripIntoEditor(tripId).then(maybeAppendPendingPoi);
   } else {
     renderItinerarySteps();
+    renderItinMinimap();
     maybeAppendPendingPoi();
   }
 }
@@ -1768,9 +1901,13 @@ itineraryModal.addEventListener('click', (e) => {
 async function loadTripIntoEditor(tripId) {
   itineraryStepsEl.innerHTML = '<div class="trips-empty">Chargement…</div>';
   try {
-    const { data: trip, error: tErr } = await sb.from('trips').select('name').eq('id', tripId).single();
+    const { data: trip, error: tErr } = await sb.from('trips').select('name, type_sejour, date_start, date_end').eq('id', tripId).single();
     if (tErr) throw tErr;
     itineraryNameInput.value = trip.name;
+    currentTripType = trip.type_sejour || null;
+    currentTripDateStart = trip.date_start || null;
+    currentTripDateEnd = trip.date_end || null;
+    renderItineraryMetaSub();
     const { data: stops, error: sErr } = await sb.from('trip_stops').select('name, custom_lat, custom_lon, position_order, poi_id').eq('trip_id', tripId).order('position_order', { ascending: true });
     if (sErr) throw sErr;
     tripStops = (stops || []).map((s) => ({ name: s.name, lat: s.custom_lat, lon: s.custom_lon, poi_id: s.poi_id || null }));
@@ -1980,7 +2117,10 @@ itinerarySaveBtn.addEventListener('click', async () => {
       if (error) throw error;
       await sb.from('trip_stops').delete().eq('trip_id', tripId);
     } else {
-      const { data, error } = await sb.from('trips').insert({ user_id: userId, name }).select('id').single();
+      const { data, error } = await sb.from('trips').insert({
+        user_id: userId, name,
+        type_sejour: currentTripType || null, date_start: currentTripDateStart || null, date_end: currentTripDateEnd || null
+      }).select('id').single();
       if (error) throw error;
       tripId = data.id;
       currentTripId = tripId;
