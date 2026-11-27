@@ -37,11 +37,14 @@ if (!API_KEY) {
 }
 
 const BASE = 'https://api.datatourisme.fr/v1';
-const TARGET_COUNT = 50; // nombre de nouveaux POI visés
-const MAX_PAGES = 60; // garde-fou (rate limit ~1000 req/h, ~10 req/s soutenu)
-const PAGE_SIZE = 50;
+const TARGET_COUNT = 500; // nombre de nouveaux POI visés
+const MAX_PAGES = 600; // garde-fou (rate limit ~1000 req/h, ~10 req/s soutenu — voir calcul ci-dessous)
+const PAGE_SIZE = 100; // max autorisé par l'API depuis le 2026-07-15
 const MIN_DISTANCE_KM = 3; // dédoublonnage géographique
-const REQUEST_DELAY_MS = 150; // throttle, bien en-dessous de 10 req/s
+const REQUEST_DELAY_MS = 150; // throttle (~6,6 req/s, sous la limite de 10 req/s soutenu)
+// À 600 pages max et 150ms d'attente entre pages, le pire cas est ~600 requêtes en ~90s,
+// largement sous le plafond de 1000 req/h — aucun risque de rate-limit même si les 500
+// POI visés ne sont jamais atteints (filtres photo/description trop stricts, etc.).
 
 const existingPois = require('./poi-seed-data.js');
 
