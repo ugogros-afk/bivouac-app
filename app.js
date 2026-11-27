@@ -69,6 +69,30 @@ function wikimediaThumb(url, width) {
   return base + '/thumb/' + a + '/' + ab + '/' + filename + '/' + width + 'px-' + filename;
 }
 
+// Photos trop lentes à charger (#25), partie 3 : les photos des avis et des posts Communauté
+// (stockées dans Supabase Storage) sont compressées côté client AVANT l'upload (voir
+// compressImageForUpload), mais à une taille pensée pour un éventuel affichage plein écran
+// (jusqu'à 1600px). Or elles ne sont AFFICHÉES que dans de petites vignettes (~350px) : le
+// navigateur télécharge donc une image 4 à 5x plus lourde que nécessaire à chaque fois.
+// On passe par l'API de redimensionnement à la volée de Supabase Storage (render/image) pour
+// ne servir que la taille réellement affichée. Si cette fonctionnalité n'est pas activée sur le
+// projet (plan Supabase sans Image Transformations), l'URL transformée répond en erreur : les
+// <img> qui l'utilisent ont un onerror de secours qui retombe sur l'URL d'origine, donc aucune
+// régression possible, juste une perte de l'optimisation dans ce cas.
+function supabaseStorageThumb(url, width) {
+  if (!url) return url;
+  const m = String(url).match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/(.+)$/i);
+  if (!m) return url; // pas une URL Supabase Storage publique reconnue
+  const [, base, pathAndQuery] = m;
+  return base + '/storage/v1/render/image/public/' + pathAndQuery + (pathAndQuery.includes('?') ? '&' : '?') + 'width=' + width + '&quality=75';
+}
+
+// Redimensionnement à l'affichage, quelle que soit la source de la photo (Wikimedia pour les
+// lieux éditoriaux, Supabase Storage pour les avis/posts utilisateurs).
+function displayThumb(url, width) {
+  return supabaseStorageThumb(wikimediaThumb(url, width), width);
+}
+
 const COLORS = { aire: '#4ADE80', camping: '#38BDF8', bivouac: '#FB923C', community: '#C084FC' };
 
 // --- Filtre par type de spot (barre de chips en haut) ---
@@ -568,7 +592,7 @@ function renderAvisList(items) {
     let html = '<div class="avis-item' + (isReport ? ' is-report' : '') + '">';
     if (isReport) html += '<div class="avis-report-label">⚠️ Signalement</div>';
     if (it.rating) html += '<div class="avis-stars">' + '★'.repeat(it.rating) + '☆'.repeat(5 - it.rating) + '</div>';
-    if (it.photo_url) html += '<img src="' + it.photo_url + '" loading="lazy">';
+    if (it.photo_url) html += '<img src="' + escapeAttr(displayThumb(it.photo_url, 400)) + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + escapeAttr(it.photo_url) + '\';">';
     if (it.text) html += '<p>' + escapeHtml(it.text) + '</p>';
     html += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + ' à ' + new Date(it.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</span>';
     html += '</div>';
@@ -616,7 +640,9 @@ async function submitAvis() {
   try {
     let photoUrl = null;
     if (file) {
-      const uploadFile = await compressImageForUpload(file);
+      // Photo d'avis : jamais affichée qu'en petite vignette (pas de visionneuse plein écran),
+      // donc inutile de conserver une résolution pensée pour du plein écran.
+      const uploadFile = await compressImageForUpload(file, 1000, 0.78);
       const ext = (uploadFile.name.split('.').pop() || 'jpg').toLowerCase();
       const path = currentAvisSpot.id + '_' + Date.now() + '.' + ext;
       const { error: upErr } = await sb.storage.from('photos').upload(path, uploadFile);
@@ -2175,7 +2201,8 @@ postSubmitBtn.addEventListener('click', async () => {
     const myId = await currentUserId();
     let photoUrls = [];
     if (file) {
-      const uploadFile = await compressImageForUpload(file);
+      // Photo de post Communauté : affichée dans une carte de fil, jamais en plein écran.
+      const uploadFile = await compressImageForUpload(file, 1000, 0.78);
       const ext = (uploadFile.name.split('.').pop() || 'jpg').toLowerCase();
       const path = 'posts/' + myId + '_' + Date.now() + '.' + ext;
       const { error: upErr } = await sb.storage.from('photos').upload(path, uploadFile);
@@ -2270,7 +2297,7 @@ function feedPostHtml(p, kudoUserIds, myId) {
   return '<div class="feed-post-card" data-post-id="' + p.id + '">' +
     '<div class="feed-post-head"><span class="feed-post-author">' + escapeHtml(author) + '</span><span class="feed-post-date">' + date + '</span></div>' +
     (p.content ? '<div class="feed-post-content">' + escapeHtml(p.content) + '</div>' : '') +
-    (photo ? '<img src="' + escapeAttr(wikimediaThumb(photo, 800)) + '" alt="" loading="lazy">' : '') +
+    (photo ? '<img src="' + escapeAttr(displayThumb(photo, 800)) + '" alt="" loading="lazy" onerror="this.onerror=null;this.src=\'' + escapeAttr(photo) + '\';">' : '') +
     (statsHtml ? '<div class="feed-post-stats">' + statsHtml + '</div>' : '') +
     '<div class="feed-post-actions">' +
       '<button type="button" class="kudo-btn' + (iKudoed ? ' kudo-active' : '') + '" data-post-id="' + p.id + '">👏 ' + kudoUserIds.length + '</button>' +
@@ -2522,7 +2549,7 @@ async function loadPoiReviews(poiId) {
     list.innerHTML = data.map((it) => {
       let h = '<div class="avis-item">';
       if (it.rating) h += '<div class="avis-stars">' + '★'.repeat(it.rating) + '☆'.repeat(5 - it.rating) + '</div>';
-      if (it.photo_url) h += '<img src="' + it.photo_url + '" loading="lazy">';
+      if (it.photo_url) h += '<img src="' + escapeAttr(displayThumb(it.photo_url, 400)) + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + escapeAttr(it.photo_url) + '\';">';
       if (it.text) h += '<p>' + escapeHtml(it.text) + '</p>';
       h += '<span class="avis-date">' + new Date(it.created_at).toLocaleDateString('fr-FR') + '</span></div>';
       return h;
