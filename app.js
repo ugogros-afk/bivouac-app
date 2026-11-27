@@ -2115,7 +2115,9 @@ const communauteFeedList = document.getElementById('communauteFeedList');
 const communauteShareBtn = document.getElementById('communauteShareBtn');
 const communauteSearchToggleBtn = document.getElementById('communauteSearchToggleBtn');
 const communauteAddFriendBtn = document.getElementById('communauteAddFriendBtn');
-const friendSearchWrap = document.getElementById('friendSearchWrap');
+const addFriendModal = document.getElementById('addFriendModal');
+const addFriendClose = document.getElementById('addFriendClose');
+const addFriendShareBtn = document.getElementById('addFriendShareBtn');
 const friendSearchInput = document.getElementById('friendSearchInput');
 const friendSearchResults = document.getElementById('friendSearchResults');
 const composePostBtn = document.getElementById('composePostBtn');
@@ -2140,23 +2142,24 @@ communauteClose.addEventListener('click', () => { closeCommunauteModal(); setAct
 communauteModal.addEventListener('click', (e) => { if (e.target === communauteModal) { closeCommunauteModal(); setActiveNav('map'); } });
 
 // Boutons "Rechercher des amis" / "Ajouter des amis" du header (#28, mockup Communaute.html) :
-// le champ de recherche n'est plus affiché en permanence, il s'ouvre au clic sur l'un des deux
-// (les deux mènent à la même recherche, "ajouter" et "rechercher des amis" étant la même action
-// dans cette v1 — pas de flow d'invitation séparé).
-function toggleFriendSearch(forceOpen) {
-  const willShow = forceOpen !== undefined ? forceOpen : friendSearchWrap.style.display === 'none';
-  friendSearchWrap.style.display = willShow ? 'block' : 'none';
-  communauteSearchToggleBtn.classList.toggle('active', willShow);
-  communauteAddFriendBtn.classList.toggle('active', willShow);
-  if (willShow) {
-    friendSearchInput.focus();
-  } else {
-    friendSearchInput.value = '';
-    friendSearchResults.innerHTML = '';
-  }
+// les deux ouvrent la même pop-up "Ajouter des amis" (retour utilisateur du 27/11/2026 : un clic
+// doit ouvrir une vraie pop-up, pas juste faire apparaître un champ en place), qui propose soit de
+// partager l'app à ses contacts (même action que communauteShareBtn), soit de chercher un pseudo
+// existant dans la base.
+function openAddFriendModal() {
+  addFriendModal.classList.add('show');
+  friendSearchInput.focus();
 }
-communauteSearchToggleBtn.addEventListener('click', () => toggleFriendSearch());
-communauteAddFriendBtn.addEventListener('click', () => toggleFriendSearch(true));
+function closeAddFriendModal() {
+  addFriendModal.classList.remove('show');
+  friendSearchInput.value = '';
+  friendSearchResults.innerHTML = '';
+}
+communauteSearchToggleBtn.addEventListener('click', openAddFriendModal);
+communauteAddFriendBtn.addEventListener('click', openAddFriendModal);
+addFriendClose.addEventListener('click', closeAddFriendModal);
+addFriendModal.addEventListener('click', (e) => { if (e.target === addFriendModal) closeAddFriendModal(); });
+addFriendShareBtn.addEventListener('click', () => shareApp());
 
 communauteTabFeed.addEventListener('click', () => {
   communauteTabFeed.classList.add('active'); communauteTabGroups.classList.remove('active');
@@ -2167,7 +2170,7 @@ communauteTabGroups.addEventListener('click', () => {
   communauteFeedPane.style.display = 'none'; communauteGroupsPane.style.display = 'block';
 });
 
-communauteShareBtn.addEventListener('click', async () => {
+async function shareApp() {
   const shareData = { title: 'Roamly', text: 'Je planifie mes road-trips et bivouacs avec Roamly, regarde :', url: 'https://bivouac-app-jade.vercel.app' };
   if (navigator.share) {
     try { await navigator.share(shareData); } catch (e) { /* annulé par l'utilisateur, rien à faire */ }
@@ -2177,7 +2180,8 @@ communauteShareBtn.addEventListener('click', async () => {
       alert('Lien copié dans le presse-papiers !');
     } catch (e) { alert(shareData.url); }
   }
-});
+}
+communauteShareBtn.addEventListener('click', shareApp);
 
 // Recherche d'amis par pseudo (#28)
 let friendSearchTimer = null;

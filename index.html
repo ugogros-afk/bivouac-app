@@ -762,6 +762,21 @@
   </div>
 </div>
 
+<!-- Ajouter des amis (#28) : popup ouverte par les boutons 🔍/➕ du header Communauté
+     (demande utilisateur du 27/11/2026 : un clic doit ouvrir une pop-up, pas juste un champ
+     qui apparaît en place) : partager l'app à ses contacts, ou chercher un pseudo existant. -->
+<div id="addFriendModal" class="sheet-overlay">
+  <div class="sheet">
+    <button id="addFriendClose" class="sheet-close">✕</button>
+    <h3 class="sheet-title">Ajouter des amis</h3>
+    <button id="addFriendShareBtn" class="auth-submit" type="button" style="margin-bottom:16px">↗ Partager l'app à mes contacts</button>
+    <div style="position:relative">
+      <input type="text" id="friendSearchInput" class="account-input" style="text-align:left" placeholder="Rechercher un pseudo à suivre…" autocomplete="off">
+      <div id="friendSearchResults"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Compte utilisateur : page plein écran -->
 <div id="accountModal" class="auth-page">
   <button id="accountClose" class="auth-close">✕</button>
@@ -964,11 +979,6 @@
     </div>
 
     <div id="communauteFeedPane">
-      <div id="friendSearchWrap" style="display:none;margin-bottom:16px;position:relative">
-        <input type="text" id="friendSearchInput" class="account-input" style="text-align:left" placeholder="Rechercher un pseudo à suivre…" autocomplete="off">
-        <div id="friendSearchResults"></div>
-      </div>
-
       <button id="composePostBtn" class="auth-submit" type="button" style="margin-bottom:22px">+ Partager un voyage</button>
 
       <div id="communauteFeedList">Chargement…</div>
