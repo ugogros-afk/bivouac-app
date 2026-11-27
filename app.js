@@ -747,6 +747,23 @@ citySearchInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') searchCity();
 });
 
+// Popover de filtres (remplace l'ancienne bande de chips en permanence visible, retour
+// utilisateur du 27/11/2026 : se superposait visuellement à la carte).
+const filterToggleBtn = document.getElementById('filterToggleBtn');
+const filterRowEl = document.getElementById('filterRow');
+filterToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const willShow = !filterRowEl.classList.contains('show');
+  filterRowEl.classList.toggle('show', willShow);
+  filterToggleBtn.classList.toggle('active', willShow);
+});
+document.addEventListener('click', (e) => {
+  if (filterRowEl.classList.contains('show') && !filterRowEl.contains(e.target) && e.target !== filterToggleBtn) {
+    filterRowEl.classList.remove('show');
+    filterToggleBtn.classList.remove('active');
+  }
+});
+
 // --- Ajout d'un nouveau lieu : géolocalisation, adresse tapée, ou clic sur la carte ---
 const addSpotModal = document.getElementById('addSpotModal');
 const addSpotStep1 = document.getElementById('addSpotStep1');
@@ -2096,6 +2113,9 @@ const communauteFeedPane = document.getElementById('communauteFeedPane');
 const communauteGroupsPane = document.getElementById('communauteGroupsPane');
 const communauteFeedList = document.getElementById('communauteFeedList');
 const communauteShareBtn = document.getElementById('communauteShareBtn');
+const communauteSearchToggleBtn = document.getElementById('communauteSearchToggleBtn');
+const communauteAddFriendBtn = document.getElementById('communauteAddFriendBtn');
+const friendSearchWrap = document.getElementById('friendSearchWrap');
 const friendSearchInput = document.getElementById('friendSearchInput');
 const friendSearchResults = document.getElementById('friendSearchResults');
 const composePostBtn = document.getElementById('composePostBtn');
@@ -2118,6 +2138,25 @@ function closeCommunauteModal() {
 }
 communauteClose.addEventListener('click', () => { closeCommunauteModal(); setActiveNav('map'); });
 communauteModal.addEventListener('click', (e) => { if (e.target === communauteModal) { closeCommunauteModal(); setActiveNav('map'); } });
+
+// Boutons "Rechercher des amis" / "Ajouter des amis" du header (#28, mockup Communaute.html) :
+// le champ de recherche n'est plus affiché en permanence, il s'ouvre au clic sur l'un des deux
+// (les deux mènent à la même recherche, "ajouter" et "rechercher des amis" étant la même action
+// dans cette v1 — pas de flow d'invitation séparé).
+function toggleFriendSearch(forceOpen) {
+  const willShow = forceOpen !== undefined ? forceOpen : friendSearchWrap.style.display === 'none';
+  friendSearchWrap.style.display = willShow ? 'block' : 'none';
+  communauteSearchToggleBtn.classList.toggle('active', willShow);
+  communauteAddFriendBtn.classList.toggle('active', willShow);
+  if (willShow) {
+    friendSearchInput.focus();
+  } else {
+    friendSearchInput.value = '';
+    friendSearchResults.innerHTML = '';
+  }
+}
+communauteSearchToggleBtn.addEventListener('click', () => toggleFriendSearch());
+communauteAddFriendBtn.addEventListener('click', () => toggleFriendSearch(true));
 
 communauteTabFeed.addEventListener('click', () => {
   communauteTabFeed.classList.add('active'); communauteTabGroups.classList.remove('active');

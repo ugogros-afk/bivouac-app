@@ -48,12 +48,20 @@
     font-family: inherit; box-shadow: var(--bv-shadow-card);
   }
   #citySearchInput::placeholder { color: var(--bv-muted2); }
-  #citySearchBtn, #addSpotBtn, #favBtn {
+  #citySearchBtn, #addSpotBtn, #favBtn, #filterToggleBtn {
     background: rgba(255,255,255,.9); border: 1px solid var(--bv-border); border-radius: 50%; width: 44px; height: 44px;
     font-size: 18px; flex-shrink: 0; color: var(--bv-text); backdrop-filter: blur(6px); box-shadow: var(--bv-shadow-card);
   }
-  #filterRow { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  #filterRow::-webkit-scrollbar { display: none; }
+  #filterToggleBtn { display: flex; align-items: center; justify-content: center; }
+  #filterToggleBtn.active { background: var(--bv-accent); color: var(--bv-on-accent); border-color: transparent; }
+  /* Popover de filtres (remplace l'ancienne bande de chips en permanence visible sous la recherche) :
+     fermé par défaut, ouvert au clic sur #filterToggleBtn, flottant juste sous la barre de recherche. */
+  #filterRow {
+    display: none; flex-wrap: wrap; gap: 8px; position: absolute; top: calc(100% + 8px); right: 0; z-index: 10;
+    background: rgba(255,255,255,.98); backdrop-filter: blur(6px); border: 1px solid var(--bv-border);
+    border-radius: 18px; padding: 12px; box-shadow: var(--bv-shadow-card); width: 220px;
+  }
+  #filterRow.show { display: flex; }
   .filter-chip {
     flex-shrink: 0; border: 1px solid transparent; border-radius: 999px; padding: 8px 14px 8px 10px;
     font-size: 12.5px; font-weight: 500; background: rgba(255,255,255,.85); color: var(--bv-muted);
@@ -420,6 +428,15 @@
   .fav-remove { border: none; background: none; color: var(--bv-bad); font-size: 16px; padding: 4px 8px; }
 
   /* Communauté (#28) */
+  /* Boutons icône "Rechercher des amis" / "Ajouter des amis" du header (mockup Communaute.html) :
+     ouvrent/ferment #friendSearchWrap au lieu d'avoir le champ de recherche en permanence visible. */
+  .comm-icon-btn {
+    width: 36px; height: 36px; border-radius: 999px; border: none; flex-shrink: 0;
+    background: var(--bv-surface-raised); color: var(--bv-text); box-shadow: 0 4px 10px rgba(38,61,53,.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .comm-icon-btn-accent { background: var(--bv-accent); color: var(--bv-on-accent); box-shadow: 0 4px 10px rgba(38,61,53,.18); }
+  .comm-icon-btn.active { background: var(--bv-accent); color: var(--bv-on-accent); }
   .friend-result-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     background: var(--bv-surface-raised); border: 1px solid var(--bv-border); border-radius: 14px;
@@ -631,15 +648,21 @@
     <img class="roamly-mark" src="icons/icon-192.png" width="20" height="20" alt="" aria-hidden="true">
     <span class="topbar-brand-word">Roamly</span>
   </div>
-  <div id="citySearchRow">
+  <div id="citySearchRow" style="position:relative">
     <input type="text" id="citySearchInput" placeholder="Rechercher une ville, une adresse…">
     <button id="citySearchBtn" aria-label="Rechercher">🔍</button>
-  </div>
-  <div id="filterRow">
-    <button class="filter-chip active" data-cls="aire"><span class="dot" style="background:var(--bv-aire)"></span>Aires</button>
-    <button class="filter-chip active" data-cls="camping"><span class="dot" style="background:var(--bv-camping)"></span>Campings</button>
-    <button class="filter-chip active" data-cls="bivouac"><span class="dot" style="background:var(--bv-bivouac)"></span>Bivouacs</button>
-    <button class="filter-chip active" data-cls="community"><span class="dot" style="background:var(--bv-community)"></span>Communauté</button>
+    <button id="filterToggleBtn" aria-label="Filtres">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="2.3" fill="var(--bv-surface-raised)" stroke="currentColor" stroke-width="2"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="17" r="2.3" fill="var(--bv-surface-raised)" stroke="currentColor" stroke-width="2"/></svg>
+    </button>
+    <!-- Les 4 chips de catégorie (#filterRow) étaient en permanence affichées sous la barre de
+         recherche (bande colorée qui se superposait visuellement avec la carte, cf. retour
+         utilisateur du 27/11/2026) : regroupées dans ce popover ouvert par le bouton "Filtres". -->
+    <div id="filterRow">
+      <button class="filter-chip active" data-cls="aire"><span class="dot" style="background:var(--bv-aire)"></span>Aires</button>
+      <button class="filter-chip active" data-cls="camping"><span class="dot" style="background:var(--bv-camping)"></span>Campings</button>
+      <button class="filter-chip active" data-cls="bivouac"><span class="dot" style="background:var(--bv-bivouac)"></span>Bivouacs</button>
+      <button class="filter-chip active" data-cls="community"><span class="dot" style="background:var(--bv-community)"></span>Communauté</button>
+    </div>
   </div>
   <div id="actionsRow">
     <button id="searchBtn">Rechercher dans cette zone</button>
@@ -922,9 +945,17 @@
 <div id="communauteModal" class="auth-page">
   <button id="communauteClose" class="auth-close">✕</button>
   <div class="auth-scroll" style="text-align:left;max-width:520px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px">
       <h1 style="font-family:'Nunito',sans-serif;font-weight:800;font-size:22px;margin:0;color:var(--bv-text)">Communauté</h1>
-      <button id="communauteShareBtn" class="sheet-secondary" style="padding:8px 14px;font-size:13px;width:auto">↗ Partager l'app</button>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button id="communauteSearchToggleBtn" class="comm-icon-btn" type="button" aria-label="Rechercher des amis">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button id="communauteAddFriendBtn" class="comm-icon-btn comm-icon-btn-accent" type="button" aria-label="Ajouter des amis">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18" y1="7" x2="18" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button id="communauteShareBtn" class="sheet-secondary" style="padding:8px 14px;font-size:13px;width:auto">↗ Partager l'app</button>
+      </div>
     </div>
 
     <div class="auth-tabs" style="margin-bottom:18px">
@@ -933,7 +964,7 @@
     </div>
 
     <div id="communauteFeedPane">
-      <div style="margin-bottom:16px;position:relative">
+      <div id="friendSearchWrap" style="display:none;margin-bottom:16px;position:relative">
         <input type="text" id="friendSearchInput" class="account-input" style="text-align:left" placeholder="Rechercher un pseudo à suivre…" autocomplete="off">
         <div id="friendSearchResults"></div>
       </div>
